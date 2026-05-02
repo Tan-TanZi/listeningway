@@ -5,20 +5,20 @@
 **License**: MIT (see [`LICENSE`](LICENSE))
 **Imported at commit**: 2026-05-02 from `Youda008/OpenRGB-cppSDK` master, with submodules resolved (`external/CppUtils-Essential`, `external/CppUtils-Network`).
 
-## What we use
+## What Listeningway uses
 
-The full library, hooked via `add_subdirectory()` from our top-level `CMakeLists.txt`. The `orgbsdk` static target is linked into the Listeningway addon DLL by [`src/output/openrgb_consumer.cpp`](../../src/output/openrgb_consumer.cpp).
+The full library, hooked via `add_subdirectory()` from the Listeningway top-level `CMakeLists.txt`. The `orgbsdk` static target is linked into the Listeningway addon DLL by [`src/output/openrgb_consumer.cpp`](../../src/output/openrgb_consumer.cpp).
 
 The CMake graph also picks up:
 
 - `external/CppUtils-Essential/`: Youda008's stdlib-style helpers (BinaryStream, Endianity, Span, ContainerUtils, ...).
 - `external/CppUtils-Network/`: TCP socket + WSAStartup wrapper, used by `orgbsdk`'s `Client::connect()`.
 
-The `tools/orgbcli/` directory (an interactive command-line OpenRGB client) is included by upstream with `EXCLUDE_FROM_ALL` and never builds in our pipeline.
+The `tools/orgbcli/` directory (an interactive command-line OpenRGB client) is included by upstream with `EXCLUDE_FROM_ALL` and never builds in the Listeningway pipeline.
 
 ## Why this library
 
-Picked for the v2.x OpenRGB consumer (ADR-0012). Pre-2026 industry research already validated it (see [`research-notes-process-audio.md`](../../docs/adr/research-notes-process-audio.md) and the user-wishlist findings): the only serious C++ client, MIT-licensed, stdlib-only deps, handles the protocol-version negotiation we explicitly don't want to redo ourselves (mishandled it can corrupt server-side memory per the upstream reference). Five public headers; the rest is internal.
+Picked for the v2.x OpenRGB consumer (ADR-0012). Pre-2026 industry research already validated it (see [`research-notes-process-audio.md`](../../docs/adr/research-notes-process-audio.md) and the user-wishlist findings): the only serious C++ client, MIT-licensed, stdlib-only deps, handles the protocol-version negotiation that Listeningway explicitly does not want to redo (mishandled, it can corrupt server-side memory per the upstream reference). Five public headers; the rest is internal.
 
 ## Update procedure
 

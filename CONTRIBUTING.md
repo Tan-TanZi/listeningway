@@ -147,7 +147,7 @@ Coverage isn't gated, but `tests/replay/` accepts WAV-driven golden traces if yo
 3. If you touched a public API surface (uniforms, settings JSON, source codes), update [STABILITY.md](STABILITY.md) and [CHANGELOG.md](CHANGELOG.md). For a new architectural decision, add an ADR in `docs/adr/`.
 4. PR description: what changed, why, and (for behavior changes) how you verified it in-game.
 
-For broader or fuzzier work, open an issue first to align on the approach. Saves both of us a round trip.
+For broader or fuzzier work, open an issue first to align on the approach. Saves a round trip for everyone.
 
 ---
 

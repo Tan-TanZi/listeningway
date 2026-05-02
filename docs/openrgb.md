@@ -1,6 +1,6 @@
 # OpenRGB integration
 
-Listeningway can drive RGB peripherals through your existing [OpenRGB](https://openrgb.org) server. We don't ship RGB drivers, don't enumerate vendor SDKs, and don't bundle OpenRGB itself: Listeningway is just another OpenRGB SDK client. Anything OpenRGB sees, Listeningway can paint.
+Listeningway can drive RGB peripherals through your existing [OpenRGB](https://openrgb.org) server. It doesn't ship RGB drivers, doesn't enumerate vendor SDKs, and doesn't bundle OpenRGB itself: Listeningway is just another OpenRGB SDK client. Anything OpenRGB sees, Listeningway can paint.
 
 ## Prerequisites
 
@@ -57,15 +57,15 @@ The integration is designed to recover automatically rather than need manual res
 
 - **Server not running on toggle-on.** The consumer connects, fails, raises a self-disarm flag, and the overlay toggle flips back off so the UI matches reality. Start OpenRGB and toggle on again.
 - **Server crashes or restarts mid-session.** Detected on the next send tick (`ConnectionClosed` from cppSDK). The status line shows "server connection lost; will retry" and the worker re-attempts on the next tick. Once the server is back, the connection re-establishes and the device list is refreshed.
-- **Hot-plug.** New devices added or removed while Listeningway is running are picked up by `checkForDeviceUpdates()` (called every ~2 s); we re-fetch the device list and switch each new device to custom mode automatically.
-- **`switchToCustomMode` failure on one device.** Some devices have a custom mode that's hard to reach from OpenRGB. We log a warning and keep painting the rest; the troublesome device is just left in whatever mode it was already in.
+- **Hot-plug.** New devices added or removed while Listeningway is running are picked up by `checkForDeviceUpdates()` (called every ~2 s); the device list is re-fetched and each new device is switched to custom mode automatically.
+- **`switchToCustomMode` failure on one device.** Some devices have a custom mode that's hard to reach from OpenRGB. Listeningway logs a warning and keeps painting the rest; the troublesome device is just left in whatever mode it was already in.
 
 ## Limitations
 
 - **One opinionated mapping.** No per-device or per-zone configuration in v1. Every LED on every controller participates in the spectrum.
-- **Custom-mode only.** We push per-LED frames via custom/direct mode rather than driving named effects (Rainbow, Breathing, etc.). Custom mode is the one consistent path across all OpenRGB-supported devices.
+- **Custom-mode only.** Frames are pushed per-LED via custom/direct mode rather than driving named effects (Rainbow, Breathing, etc.). Custom mode is the one consistent path across all OpenRGB-supported devices.
 - **No effect-mode driving.** If your device has a particularly nice built-in effect you want to keep using, the workaround is to disable that controller in OpenRGB so Listeningway doesn't see it.
-- **OpenRGB itself must be running.** We won't auto-launch it.
+- **OpenRGB itself must be running.** Listeningway won't auto-launch it.
 - **The OpenRGB server's [anti-cheat caveat](https://gitlab.com/CalcProgrammer1/OpenRGB/-/issues/1273)** affects the server (kernel-mode drivers), not Listeningway. Listeningway is a normal user-mode TCP client.
 
 ## See also

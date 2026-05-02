@@ -178,8 +178,8 @@ If you want to add a new audio source, DSP stage, output consumer, or shader uni
 
 The wire-layer libraries for the OSC and OpenRGB consumers are vendored under [`third_party/`](third_party/) with their licenses and full attribution. They're the reason those integrations exist:
 
-- **OSC**: [`mhroth/tinyosc`](https://github.com/mhroth/tinyosc) by **Martin Roth**, ISC-licensed. Two-file C99 OSC encoder; we use the encoder side and bring our own Winsock plumbing. Detail in [`third_party/tinyosc/ATTRIBUTION.md`](third_party/tinyosc/ATTRIBUTION.md).
-- **OpenRGB**: [`Youda008/OpenRGB-cppSDK`](https://github.com/Youda008/OpenRGB-cppSDK) by **Jan Broz**, MIT-licensed. The serious C++ client for the OpenRGB protocol; handles the version negotiation correctly so we don't have to. Builds on Youda008's [`CppUtils-Essential`](https://github.com/Youda008/CppUtils-Essential) and [`CppUtils-Network`](https://github.com/Youda008/CppUtils-Network) libraries (also MIT). Detail in [`third_party/Youda008-OpenRGB-cppSDK/ATTRIBUTION.md`](third_party/Youda008-OpenRGB-cppSDK/ATTRIBUTION.md).
+- **OSC**: [`mhroth/tinyosc`](https://github.com/mhroth/tinyosc) by **Martin Roth**, ISC-licensed. Two-file C99 OSC encoder; Listeningway uses the encoder side and brings its own Winsock plumbing. Detail in [`third_party/tinyosc/ATTRIBUTION.md`](third_party/tinyosc/ATTRIBUTION.md).
+- **OpenRGB**: [`Youda008/OpenRGB-cppSDK`](https://github.com/Youda008/OpenRGB-cppSDK) by **Jan Broz**, MIT-licensed. The serious C++ client for the OpenRGB protocol; handles protocol-version negotiation correctly so Listeningway doesn't have to. Builds on Youda008's [`CppUtils-Essential`](https://github.com/Youda008/CppUtils-Essential) and [`CppUtils-Network`](https://github.com/Youda008/CppUtils-Network) libraries (also MIT). Detail in [`third_party/Youda008-OpenRGB-cppSDK/ATTRIBUTION.md`](third_party/Youda008-OpenRGB-cppSDK/ATTRIBUTION.md).
 
 The rest of the dependency stack:
 
