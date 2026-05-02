@@ -37,9 +37,9 @@ That's the whole setup for shader use. OSC and OpenRGB integrations are off by d
 
 ---
 
-## What you can do with it
+## What it drives
 
-### Drive ReShade shaders
+### ReShade shaders
 
 Include the generated header and read the uniforms you want.
 
@@ -79,9 +79,15 @@ A few uniforms worth knowing:
 
 The full uniform registry, including stability tier (Stable vs Experimental), lives in [STABILITY.md](STABILITY.md). That document is the public API contract.
 
-### Send to TouchDesigner, Resolume, Max/MSP, vvvv, ...
+---
 
-Flip the **OSC** toggle in the overlay's **Integrations** section. The default destination is `127.0.0.1:9000` (TouchDesigner's default OSC In port). OSC addresses mirror the shader uniforms under a `/listeningway/` prefix; for example `/listeningway/volume`, `/listeningway/freqbands`, `/listeningway/beat`.
+## What it integrates with
+
+Listeningway can mirror its analysis out to other tools over the wire. Both integrations are off by default and toggle from the overlay's **Integrations** section. New integrations land here as they're built; the underlying `IOutputConsumer` abstraction makes adding one a small change.
+
+### OSC (TouchDesigner, Resolume, Max/MSP, vvvv, ...)
+
+Flip the **OSC** toggle. The default destination is `127.0.0.1:9000` (TouchDesigner's default OSC In port). OSC addresses mirror the shader uniforms under a `/listeningway/` prefix; for example `/listeningway/volume`, `/listeningway/freqbands`, `/listeningway/beat`.
 
 To verify the stream, run the bundled receiver:
 
@@ -93,7 +99,7 @@ It listens on `127.0.0.1:9000` and prints every message it sees.
 
 Full address schema, settings, integration recipes for popular hosts, and limitations are in **[docs/osc.md](docs/osc.md)**.
 
-### Drive RGB peripherals through OpenRGB
+### OpenRGB (RGB peripherals)
 
 Install [OpenRGB](https://openrgb.org), enable its SDK server (**Settings → SDK Server → Enable Server**), and flip the **OpenRGB** toggle in the overlay. Default destination `127.0.0.1:6742`.
 
