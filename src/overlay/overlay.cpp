@@ -902,31 +902,63 @@ static void section_spatial(const AudioSnapshot& snap, config::Settings& cfg, bo
     const char* const labels[8] = { "F", "FR", "R", "BR", "B", "BL", "L", "FL" };
     const ImU32 fill = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
 
-    const float side = std::min(140.0f, ImGui::GetContentRegionAvail().x * 0.4f);
+    // Sized to match the bar column under TightRowSpacing: 8 rows × ~14 px
+    // each plus a small margin so the rose's vertical extent aligns with
+    // the column.
+    constexpr float kRoseSide = 120.0f;
+    constexpr float kLabelMargin = 9.0f;     // extra padding outside the rose for cardinal labels
+    const float side = kRoseSide;
     const ImVec2 origin = ImGui::GetCursorScreenPos();
     const ImVec2 center(origin.x + side * 0.5f, origin.y + side * 0.5f);
-    const float radius = side * 0.5f;
+    const float radius = side * 0.5f - kLabelMargin;
     auto* dl = ImGui::GetWindowDrawList();
     dl->AddCircleFilled(center, radius, IM_COL32(30, 30, 30, 128), 64);
     dl->AddCircle(center, radius, kColorOutline, 64, 1.0f);
+
+    // F = North. Rotate so index 0 (Front) sits at the top of the rose.
     constexpr float two_pi = 2.0f * std::numbers::pi_v<float>;
+    constexpr float kRoseAngleOffset = -std::numbers::pi_v<float> / 2.0f;
     for (int i = 0; i < 8; ++i) {
         const float v = std::clamp(snap.direction8[i] * dir_amp, 0.0f, 1.0f);
-        const float a0 = (two_pi / 8.0f) * (i - 0.5f);
-        const float a1 = (two_pi / 8.0f) * (i + 0.5f);
+        const float a0 = kRoseAngleOffset + (two_pi / 8.0f) * (i - 0.5f);
+        const float a1 = kRoseAngleOffset + (two_pi / 8.0f) * (i + 0.5f);
         const float r  = radius * v;
         const ImVec2 p0(center.x + r * cosf(a0), center.y + r * sinf(a0));
         const ImVec2 p1(center.x + r * cosf(a1), center.y + r * sinf(a1));
         dl->AddTriangleFilled(center, p0, p1, fill);
     }
+
+    // Cardinal labels around the rose's outer edge. Each label sits just
+    // outside the slice it corresponds to, in the angular direction of that
+    // slice's center. Faint white so the labels read as quiet annotation,
+    // not chrome.
+    const ImU32 cardinal_col = IM_COL32(255, 255, 255, 130);
+    const float label_radius = radius + 2.0f;
+    for (int i = 0; i < 8; ++i) {
+        const float a = kRoseAngleOffset + (two_pi / 8.0f) * static_cast<float>(i);
+        const ImVec2 anchor(center.x + label_radius * cosf(a),
+                             center.y + label_radius * sinf(a));
+        const ImVec2 ts = ImGui::CalcTextSize(labels[i]);
+        // Position so the label's nearest edge sits at the anchor, pushed
+        // slightly outward so the rose outline doesn't clip its glyphs.
+        const float dir_x = cosf(a);
+        const float dir_y = sinf(a);
+        const float lx = anchor.x - ts.x * 0.5f + dir_x * (ts.x * 0.5f);
+        const float ly = anchor.y - ts.y * 0.5f + dir_y * (ts.y * 0.5f);
+        dl->AddText(ImVec2(lx, ly), cardinal_col, labels[i]);
+    }
+
     ImGui::Dummy(ImVec2(side, side));
 
     ImGui::SameLine();
-    ImGui::BeginGroup();
-    for (int i = 0; i < 8; ++i) {
-        meter_row(labels[i], std::clamp(snap.direction8[i] * dir_amp, 0.0f, 1.0f), fill, "%.2f");
+    {
+        TightRowSpacing tight;
+        ImGui::BeginGroup();
+        for (int i = 0; i < 8; ++i) {
+            meter_row(labels[i], std::clamp(snap.direction8[i] * dir_amp, 0.0f, 1.0f), fill, "%.2f");
+        }
+        ImGui::EndGroup();
     }
-    ImGui::EndGroup();
 
     if (show) {
         ImGui::Indent(kSubGroupIndent);
