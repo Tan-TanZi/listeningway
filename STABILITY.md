@@ -1,12 +1,12 @@
-# Listeningway — Shader uniform stability contract
+# Listeningway: Shader uniform stability contract
 
 This document is the public API contract for shader authors. Each uniform
 `source` string below has a stability classification:
 
-- **Stable** — the name and semantic range are guaranteed not to change
+- **Stable**. The name and semantic range are guaranteed not to change
   in any v2.x release. A v3 schema break would be announced in a new ADR
   and given a deprecation period. Safe to depend on.
-- **Experimental** — the name is fixed but the semantic (range, scaling,
+- **Experimental**. The name is fixed but the semantic (range, scaling,
   edge-case behavior) may evolve during the v2 beta. Once a beta cycle
   validates the semantic, the uniform graduates to Stable.
 
@@ -99,7 +99,7 @@ documented range but the name will not change.
   ADR-0005. We aim to avoid this for at least one release cycle.
 
 If a shader you maintain uses an Experimental uniform and you want it
-graduated to Stable, file an issue — that's the signal we're looking for.
+graduated to Stable, file an issue. That's the signal we're looking for.
 
 ---
 

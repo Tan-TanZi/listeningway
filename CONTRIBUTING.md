@@ -1,6 +1,6 @@
 # Contributing to Listeningway
 
-Thanks for your interest! This document gets you oriented in the v2 codebase. Architectural rationale lives in [`docs/adr/`](docs/adr/) — read those first if you're touching anything cross-cutting.
+Thanks for your interest. This document orients you in the v2 codebase. Architectural rationale lives in [`docs/adr/`](docs/adr/); read those first if you're touching anything cross-cutting.
 
 ## Project overview
 
@@ -12,7 +12,7 @@ IAudioSource → FrameRing → DSP Pipeline → AudioSnapshot → Consumers
                                                           └─ Overlay
 ```
 
-Each layer has a single responsibility and a narrow contract. Three layers expose adapter interfaces (`IAudioSource`, `IDspStage`, `IBeatDetector`) — that's it. Everything else is a concrete type.
+Each layer has a single responsibility and a narrow contract. Three layers expose adapter interfaces (`IAudioSource`, `IDspStage`, `IBeatDetector`); that's it. Everything else is a concrete type.
 
 ## Source layout
 
@@ -21,7 +21,7 @@ src/
 ├── audio/
 │   ├── source/    IAudioSource implementations
 │   │   ├── i_audio_source.h
-│   │   ├── source_format.h           (Format / Capabilities / ChannelLayout)
+│   │   ├── source_format.h           (Format, Capabilities, ChannelLayout)
 │   │   ├── wasapi_loopback_source.{h,cpp}
 │   │   ├── process_audio_source.{h,cpp}
 │   │   └── off_source.h
@@ -54,7 +54,7 @@ prepare.bat   # clones ReShade SDK + vcpkg, installs deps, configures CMake
 build.bat     # builds Release, renames to .addon, copies to dist/, deploys
 ```
 
-Set `LISTENINGWAY_DEPLOY_DIR=...` in your environment to retarget the auto-deploy step (defaults to FFXIV path).
+Set `LISTENINGWAY_DEPLOY_DIR=...` in your environment to retarget the auto-deploy step (defaults to the FFXIV path).
 
 Manual build:
 
@@ -73,16 +73,16 @@ cmake --build build --config Release
 ctest --test-dir build --output-on-failure -C Release
 ```
 
-Toolchain: MSVC 2022 (17.x+), C++20, vcpkg manifest mode, `x64-windows-static` triplet. Compile flags: `/W4 /permissive- /Zc:preprocessor /Zc:__cplusplus /MP` (warnings-as-errors enforced in CI). See [ADR-0008](docs/adr/0008-language-and-dependencies.md) for pinning rationale.
+Toolchain: MSVC 2022 (17.x or newer), C++20, vcpkg manifest mode, `x64-windows-static` triplet. Compile flags: `/W4 /permissive- /Zc:preprocessor /Zc:__cplusplus /MP` (warnings-as-errors enforced in CI). See [ADR-0008](docs/adr/0008-language-and-dependencies.md) for pinning rationale.
 
 ## How to add things
 
 ### A new audio source
 
 1. Implement `lw::source::IAudioSource` in `src/audio/source/<my_source>.{h,cpp}`.
-2. Provide a unique `Info::code` string (persisted in settings — pick something stable).
-3. Implement `available()` honestly — false on platforms / OS versions where the source can't work; the dropdown will gray it.
-4. `open()` reports `Capabilities` (format / typical & worst-case frame counts / latency hint) or `nullopt` on failure.
+2. Provide a unique `Info::code` string. It's persisted in settings, so pick something stable.
+3. Implement `available()` honestly. Return false on platforms or OS versions where the source can't work; the dropdown will gray it.
+4. `open()` reports `Capabilities` (format, typical and worst-case frame counts, latency hint) or `nullopt` on failure.
 5. `start()` spins up the capture thread and pushes interleaved float samples to the supplied `FrameSink`.
 6. Register in `compose_pipeline` / `init` in [`src/listeningway_addon.cpp`](src/listeningway_addon.cpp) alongside the existing sources.
 7. Add the file to [`CMakeLists.txt`](CMakeLists.txt).
@@ -93,21 +93,21 @@ Reference implementations: [`wasapi_loopback_source.cpp`](src/audio/source/wasap
 
 1. Implement `lw::dsp::IDspStage` in `src/audio/dsp/stages/<my_stage>.h` (header-only is fine; many existing stages are).
 2. `name()` returns a short label (shows in the profiler).
-3. `process(AnalysisFrame&, const Settings&)` — read inputs from the frame, write outputs back. Stages downstream of you see your output.
-4. Add the stage to `compose_pipeline()` in [`src/listeningway_addon.cpp`](src/listeningway_addon.cpp) at the right ordinal (before consumers, after producers).
+3. `process(AnalysisFrame&, const Settings&)` reads inputs from the frame and writes outputs back. Stages downstream of you see your output.
+4. Add the stage to `compose_pipeline()` in [`src/listeningway_addon.cpp`](src/listeningway_addon.cpp) at the right ordinal: before consumers, after producers.
 5. Add to [`CMakeLists.txt`](CMakeLists.txt).
 
 Stage purity matters: don't read or write global state. The pipeline runs serially on the DSP thread; `Settings` is the only sanctioned cross-cut.
 
 ### A new shader uniform
 
-This is a public API surface — coordinate via an issue or PR description first if it isn't already in [STABILITY.md](STABILITY.md).
+This is a public API surface. Coordinate via an issue or PR description first if it isn't already in [STABILITY.md](STABILITY.md).
 
 1. Add a `kFoo = "listeningway_foo"` constant to [`src/output/shader_contract.h`](src/output/shader_contract.h).
 2. Add the source field to [`AudioSnapshot`](src/audio/snapshot/audio_snapshot.h). It must remain trivially copyable.
 3. Add a `value_or` projection in `AudioSystem::dsp_thread_main` ([`audio_system.cpp`](src/audio/pipeline/audio_system.cpp)) so the field gets populated each frame.
 4. Add a publish step to [`src/output/uniform_publisher.cpp`](src/output/uniform_publisher.cpp).
-5. Document the uniform in [STABILITY.md](STABILITY.md) (Stable vs Experimental).
+5. Document the uniform in [STABILITY.md](STABILITY.md) (Stable or Experimental).
 6. Add the declaration to [`templates/ListeningwayUniforms.fxh.template`](templates/ListeningwayUniforms.fxh.template) so shader authors get it from the include.
 
 The compile-time `string_view` match in `uniform_publisher.cpp` will fail with a missing-symbol error if step 1 is forgotten.
@@ -116,27 +116,27 @@ The compile-time `string_view` match in `uniform_publisher.cpp` will fail with a
 
 1. Add a field to the appropriate sub-struct in [`src/config/settings.h`](src/config/settings.h) with a sensible default.
 2. Add it to the `NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT` line for that sub-struct in [`src/config/settings_json.h`](src/config/settings_json.h).
-3. Surface it in the overlay ([`src/overlay/overlay.cpp`](src/overlay/overlay.cpp)) using `slider_row` / `combo_row` / `checkbox_row` helpers under the appropriate section.
-4. Read it in your DSP stage via `const Settings& s` passed to `process`.
+3. Surface it in the overlay ([`src/overlay/overlay.cpp`](src/overlay/overlay.cpp)) using `slider_row`, `combo_row`, or `checkbox_row` helpers under the appropriate section.
+4. Read it in your DSP stage via the `const Settings& s` passed to `process`.
 
 The overlay change persists atomically through the `Store`'s mutate-and-bump-version path; the DSP thread picks up the new value on the next frame.
 
 ## Code style
 
-- C++20. Concepts / `std::span` / `std::jthread` / designated initializers are encouraged where they earn their keep.
+- C++20. Concepts, `std::span`, `std::jthread`, and designated initializers are encouraged where they earn their keep.
 - Naming: types `PascalCase`, functions `snake_case` (project-wide), constants `kPascalCase`, namespaces `lowercase`, member variables `name_` (trailing underscore).
-- RAII everywhere; `std::unique_ptr` for ownership transfer; no raw `new`/`delete` in normal code paths.
-- Prefer small, focused files. Most stages are < 200 lines.
+- RAII everywhere. `std::unique_ptr` for ownership transfer. No raw `new`/`delete` in normal code paths.
+- Prefer small, focused files. Most stages are under 200 lines.
 - Comment only the non-obvious *why*. Don't narrate what the code already says.
 - See [ADR-0008](docs/adr/0008-language-and-dependencies.md) for the toolchain rationale.
 
 ## Testing
 
-Unit tests use GoogleTest; property tests use rapidcheck (ADR-0006). Run with `ctest --test-dir build`. Aim:
+Unit tests use GoogleTest; property tests use rapidcheck (ADR-0006). Run with `ctest --test-dir build`. Targets:
 
-- New stages: at least one unit test covering the impulse / steady-state behavior.
-- Cross-cutting changes (snapshot layout, seqlock): property tests that the writer / reader can't observe a torn snapshot.
-- Bug fixes: a regression test in `tests/` that fails before the fix, passes after.
+- New stages: at least one unit test covering the impulse and steady-state behavior.
+- Cross-cutting changes (snapshot layout, seqlock): property tests that the writer and reader can't observe a torn snapshot.
+- Bug fixes: a regression test in `tests/` that fails before the fix and passes after.
 
 Coverage isn't gated, but `tests/replay/` accepts WAV-driven golden traces if you have one for an issue you're fixing.
 
@@ -144,10 +144,10 @@ Coverage isn't gated, but `tests/replay/` accepts WAV-driven golden traces if yo
 
 1. Fork, branch from `main`, push.
 2. Build green (`build.bat`); tests green (`ctest`).
-3. Touched a public API surface (uniforms, settings JSON, source codes)? Update [STABILITY.md](STABILITY.md) and [CHANGELOG.md](CHANGELOG.md). For a new architectural decision, add an ADR in `docs/adr/`.
+3. If you touched a public API surface (uniforms, settings JSON, source codes), update [STABILITY.md](STABILITY.md) and [CHANGELOG.md](CHANGELOG.md). For a new architectural decision, add an ADR in `docs/adr/`.
 4. PR description: what changed, why, and (for behavior changes) how you verified it in-game.
 
-For broader / fuzzier work, open an issue first to align on the approach — saves both of us a round trip.
+For broader or fuzzier work, open an issue first to align on the approach. Saves both of us a round trip.
 
 ---
 
