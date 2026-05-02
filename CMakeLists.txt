@@ -4,7 +4,7 @@ if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW)
 endif()
 
-project(Listeningway VERSION 2.0.0 LANGUAGES CXX)
+project(Listeningway VERSION 2.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,11 +25,20 @@ find_package(KissFFT CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(readerwriterqueue CONFIG REQUIRED)
 
+# Vendored OpenRGB SDK (third_party/Youda008-OpenRGB-cppSDK).
+add_subdirectory(third_party/Youda008-OpenRGB-cppSDK EXCLUDE_FROM_ALL)
+
 # --- The addon target ----------------------------------------------------
 add_library(${PROJECT_NAME} SHARED
     # Top-level entry
     src/listeningway_addon.cpp
     src/listeningway_constants.h
+    src/app.h
+    src/app.cpp
+
+    # Boot scheduler (defers heavy init off the loader lock)
+    src/boot/scheduler.h
+    src/boot/scheduler.cpp
 
     # Audio source layer
     src/audio/source/source_format.h
@@ -85,10 +94,25 @@ add_library(${PROJECT_NAME} SHARED
     src/output/shader_contract.h
     src/output/uniform_publisher.h
     src/output/uniform_publisher.cpp
+    src/output/i_output_consumer.h
+    src/output/consumer_registry.h
+    src/output/consumer_registry.cpp
+    src/output/uniform_publisher_consumer.h
+    src/output/uniform_publisher_consumer.cpp
+    src/output/osc_consumer.h
+    src/output/osc_consumer.cpp
+    src/output/openrgb_consumer.h
+    src/output/openrgb_consumer.cpp
 
     # Overlay (ImGui)
     src/overlay/overlay.h
     src/overlay/overlay.cpp
+    src/overlay/overlay_consumer.h
+    src/overlay/overlay_consumer.cpp
+
+    # Vendored libraries (third_party)
+    third_party/tinyosc/tinyosc.c
+    third_party/tinyosc/tinyosc.h
 
     # Resource file (version info)
     assets/listeningway.rc
@@ -98,6 +122,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${RESHADE_SDK_PATH}
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/third_party/reshade/deps/imgui
+    ${CMAKE_SOURCE_DIR}/third_party/tinyosc
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -109,10 +134,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     kissfft::kissfft-float
     nlohmann_json::nlohmann_json
     readerwriterqueue::readerwriterqueue
+    orgbsdk
     Ole32
     Propsys
     Avrt
     Mmdevapi
+    Ws2_32
 )
 
 if(MSVC)
@@ -125,6 +152,10 @@ if(MSVC)
     )
     set_target_properties(${PROJECT_NAME} PROPERTIES
         LINK_FLAGS "/NODEFAULTLIB:LIBCMT")
+
+    # Vendored libraries: relax /W4 because we don't control upstream warnings.
+    set_source_files_properties(third_party/tinyosc/tinyosc.c
+        PROPERTIES COMPILE_OPTIONS "/W3")
 endif()
 
 # --- Tests ---------------------------------------------------------------
