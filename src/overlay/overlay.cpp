@@ -221,6 +221,27 @@ public:
     TightRowSpacing& operator=(const TightRowSpacing&) = delete;
 };
 
+// RAII: scope a narrower bar-start column when a section's labels are
+// shorter than the overlay-wide widest probe. By default g_label_col is
+// computed from probes like "Smoothing release (ms)", which leaves a huge
+// dead zone before the bars when the actual labels are tiny ("F", "BR").
+// This helper recomputes g_label_col from the supplied labels at the
+// current cursor position, then restores it on scope exit.
+class LocalLabelColumn {
+public:
+    LocalLabelColumn(std::span<const char* const> labels) : prev_(g_label_col) {
+        float widest = 0.0f;
+        for (const char* l : labels) widest = std::max(widest, ImGui::CalcTextSize(l).x);
+        g_label_col = ImGui::GetCursorPosX() + widest
+                    + ImGui::GetStyle().ItemSpacing.x + kLabelGap;
+    }
+    ~LocalLabelColumn() { g_label_col = prev_; }
+    LocalLabelColumn(const LocalLabelColumn&)            = delete;
+    LocalLabelColumn& operator=(const LocalLabelColumn&) = delete;
+private:
+    float prev_;
+};
+
 // Right-align cursor for a label of given pixel width.
 void cursor_to_right_for(float label_w_with_padding) {
     const float right_x = ImGui::GetWindowContentRegionMax().x - label_w_with_padding;
@@ -948,6 +969,7 @@ static void section_spatial(const AudioSnapshot& snap, config::Settings& cfg, bo
     ImGui::SameLine();
     {
         TightRowSpacing tight;
+        LocalLabelColumn col(std::span<const char* const>{labels, 8});
         ImGui::BeginGroup();
         for (int i = 0; i < 8; ++i) {
             meter_row(labels[i], std::clamp(snap.direction8[i] * dir_amp, 0.0f, 1.0f), fill, "%.2f");
