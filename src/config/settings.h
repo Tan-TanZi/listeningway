@@ -100,6 +100,13 @@ struct DebugConfig {
     bool overlay_enabled = false;
 };
 
+/// Overlay/UI viewing preferences. Visual-only; doesn't affect analysis or
+/// any uniform output.
+struct UiConfig {
+    enum class SpectrumOrientation { Vertical, Horizontal };
+    SpectrumOrientation spectrum_orientation = SpectrumOrientation::Horizontal;
+};
+
 /// OSC sender (Open Sound Control). Off by default; on enable, sends
 /// messages mirroring the shader uniform names ("/listeningway/volume",
 /// "/listeningway/freqbands", ...) to host:port at rate_hz.
@@ -143,6 +150,7 @@ struct Settings {
     LoudnessConfig      loudness;
     DebugConfig         debug;
     NetworkConfig       network;
+    UiConfig            ui;
 };
 
 }  // namespace lw::config

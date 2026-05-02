@@ -59,17 +59,22 @@ namespace {
 float g_label_col = 0.0f;
 float g_value_col_w = 0.0f;
 
+constexpr float kLabelGap = 8.0f;  // padding between label's right edge and bar's left edge
+
 void compute_columns() {
+    // Probe strings without trailing colons (labels render colon-less now).
+    // Picked the widest label currently in use across all sections so the
+    // bar-start column accommodates everything without clipping.
     const char* probes[] = {
-        "Threshold window (ms):",
-        "Auto-leveled treble:",
-        "Direction Boost:",
-        "Volume:",
+        "Threshold window (ms)",
+        "Smoothing release (ms)",
+        "Beat position",
+        "Brightness",
     };
     float widest = 0.0f;
     for (const char* p : probes) widest = std::max(widest, ImGui::CalcTextSize(p).x);
     const float spacing = ImGui::GetStyle().ItemSpacing.x;
-    g_label_col   = ImGui::GetCursorPosX() + widest + spacing * 2.0f;
+    g_label_col   = ImGui::GetCursorPosX() + widest + spacing + kLabelGap;
     g_value_col_w = ImGui::CalcTextSize("99.99 \xC2\xB5s").x + spacing;
 }
 
@@ -79,8 +84,14 @@ void tip(const char* text) {
     }
 }
 
+// Right-align the label so its right edge sits kLabelGap pixels to the left
+// of g_label_col. Then SameLine over to g_label_col so the bar starts there.
+// Colons are no longer expected in the label text.
 void label_left(const char* label) {
     ImGui::AlignTextToFramePadding();
+    const float label_w = ImGui::CalcTextSize(label).x;
+    const float target_x = g_label_col - kLabelGap - label_w;
+    if (target_x > ImGui::GetCursorPosX()) ImGui::SetCursorPosX(target_x);
     ImGui::TextUnformatted(label);
     ImGui::SameLine(g_label_col);
 }
@@ -191,6 +202,24 @@ void info_row(const char* label, const char* fmt, ...) {
 }
 
 // ---- Section header helpers --------------------------------------------
+
+// RAII: tighter vertical metrics in panels of consecutive meter_row bars
+// (Advanced, Performance). Shrinks frame padding and item spacing so rows
+// stack ~8 px tighter without changing each bar's own visual style. Scope
+// it only around the meter-row groups so sliders and headers keep their
+// natural rhythm.
+class TightRowSpacing {
+public:
+    TightRowSpacing() {
+        const ImVec2 fp = ImGui::GetStyle().FramePadding;
+        const ImVec2 sp = ImGui::GetStyle().ItemSpacing;
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(fp.x, 1.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,  ImVec2(sp.x, 0.0f));
+    }
+    ~TightRowSpacing() { ImGui::PopStyleVar(2); }
+    TightRowSpacing(const TightRowSpacing&)            = delete;
+    TightRowSpacing& operator=(const TightRowSpacing&) = delete;
+};
 
 // Right-align cursor for a label of given pixel width.
 void cursor_to_right_for(float label_w_with_padding) {
@@ -363,28 +392,203 @@ const char* format_label(int channels) {
     }
 }
 
-void compact_band_bars(std::span<const float> values, float amp, float width) {
+// Per-band peak hold buffer for the spectrum visualization. Sized for the
+// max possible band count; only the first N entries are used at any time.
+// Decays toward each frame's live amplitude so the user sees recent peaks
+// trailing slightly above the live shape.
+constexpr size_t kSpectrumMaxBands = 128;
+struct SpectrumPeakState {
+    std::array<float, kSpectrumMaxBands> peaks{};
+    double                                last_t = 0.0;
+};
+SpectrumPeakState g_spectrum_peaks;
+
+void update_peak_hold(std::span<const float> values, float amp) {
+    const double now = ImGui::GetTime();
+    const float dt = static_cast<float>(std::clamp(now - g_spectrum_peaks.last_t, 0.0, 0.25));
+    g_spectrum_peaks.last_t = now;
+    constexpr float kDecayPerSec = 0.55f;     // ~half decay over ~1.3 s
+    const float decay = std::exp(-kDecayPerSec * dt);
+    for (size_t i = 0; i < values.size() && i < kSpectrumMaxBands; ++i) {
+        const float v = std::clamp(values[i] * amp, 0.0f, 1.0f);
+        float& p = g_spectrum_peaks.peaks[i];
+        p = std::max(v, p * decay);
+    }
+}
+
+// Map an anchor frequency to an X position [0, width] using the same band
+// scale as the analysis pipeline. A visual approximation: bands are assumed
+// to span (min_f, max_f) with the chosen scale's geometry. Linear and Log
+// match exactly; Mel uses the standard 2595·log10(1+f/700) curve.
+float freq_to_x(float f, config::FrequencyConfig::BandScale scale,
+                float min_f, float max_f, float width) {
+    using BandScale = config::FrequencyConfig::BandScale;
+    if (max_f <= min_f) return 0.0f;
+    f = std::clamp(f, min_f, max_f);
+    float t = 0.0f;
+    switch (scale) {
+        case BandScale::Linear:
+            t = (f - min_f) / (max_f - min_f);
+            break;
+        case BandScale::Log: {
+            const float lo = std::log(std::max(min_f, 1.0f));
+            const float hi = std::log(std::max(max_f, lo + 1.0f));
+            t = (std::log(f) - lo) / (hi - lo);
+            break;
+        }
+        case BandScale::Mel: {
+            auto to_mel = [](float hz) {
+                return 2595.0f * std::log10(1.0f + hz / 700.0f);
+            };
+            const float lo = to_mel(min_f);
+            const float hi = to_mel(max_f);
+            t = (to_mel(f) - lo) / (hi - lo);
+            break;
+        }
+    }
+    return std::clamp(t, 0.0f, 1.0f) * width;
+}
+
+// Per-band hue along the spectrum (warm low → cool high). Same gradient
+// for both render orientations so the panel's identity is consistent.
+ImU32 band_color(float t, int alpha = 255) {
+    t = std::clamp(t, 0.0f, 1.0f);
+    const int r = 25 + static_cast<int>(230.0f * (1.0f - t));
+    const int g = 25 + static_cast<int>(230.0f * t);
+    const int b = 230;
+    return IM_COL32(r, g, b, alpha);
+}
+
+// ---- Spectrum: horizontal orientation (default) -------------------------
+//
+// Frequency on X (left = low, right = high), amplitude on Y (bottom = 0,
+// top = 1). Each adjacent band pair fills a quad with the top edge linearly
+// interpolated between band amplitudes, producing a smooth-looking shape at
+// 64+ bands without explicit spline math. Per-band hue gradient gives the
+// spectrum its identity. Peak-hold trace is drawn as a thin polyline above
+// the live fill. Frequency-axis anchor labels (30 Hz / 200 Hz / 1 kHz / 5
+// kHz / 20 kHz) sit just inside the bottom edge with reduced alpha.
+void render_spectrum_horizontal(std::span<const float> values, float amp,
+                                  ImVec2 size,
+                                  config::FrequencyConfig::BandScale scale,
+                                  float min_f, float max_f) {
     using namespace overlay_style;
-    if (values.empty() || width <= 0.0f) return;
+    if (values.empty() || size.x <= 0.0f || size.y <= 0.0f) return;
+
     auto* dl = ImGui::GetWindowDrawList();
-    const ImVec2 start = ImGui::GetCursorScreenPos();
-    const float bar_h = kBarHeightThin;
+    const ImVec2 origin = ImGui::GetCursorScreenPos();
+    const ImVec2 br(origin.x + size.x, origin.y + size.y);
+
+    // Pane background.
+    dl->AddRectFilled(origin, br, kColorBg, kBarRounding);
+
+    update_peak_hold(values, amp);
+
     const size_t n = values.size();
+    if (n < 2) {
+        dl->AddRect(origin, br, kColorOutline, kBarRounding);
+        ImGui::Dummy(size);
+        return;
+    }
+
+    // Per-band X centers spread across the full width.
+    auto band_x = [&](size_t i) {
+        const float t = static_cast<float>(i) / static_cast<float>(n - 1);
+        return origin.x + t * size.x;
+    };
+    const float baseline = br.y;
+    auto band_y = [&](float v) {
+        return baseline - std::clamp(v, 0.0f, 1.0f) * size.y;
+    };
+
+    // Live fill: one convex quad per inter-band segment. Linear top edge
+    // between adjacent band amplitudes; the eye reads the assembled shape
+    // as smooth at 64+ bands.
+    for (size_t i = 0; i + 1 < n; ++i) {
+        const float v0 = std::clamp(values[i]     * amp, 0.0f, 1.0f);
+        const float v1 = std::clamp(values[i + 1] * amp, 0.0f, 1.0f);
+        const float t  = (static_cast<float>(i) + 0.5f) / static_cast<float>(n - 1);
+        const ImU32 col = band_color(t);
+        const ImVec2 quad[4] = {
+            ImVec2(band_x(i),     baseline),
+            ImVec2(band_x(i + 1), baseline),
+            ImVec2(band_x(i + 1), band_y(v1)),
+            ImVec2(band_x(i),     band_y(v0)),
+        };
+        dl->AddConvexPolyFilled(quad, 4, col);
+    }
+
+    // Peak-hold outline: a thin polyline traced through the per-band peaks.
+    {
+        std::array<ImVec2, kSpectrumMaxBands> pts{};
+        const size_t k = std::min(n, kSpectrumMaxBands);
+        for (size_t i = 0; i < k; ++i) {
+            pts[i] = ImVec2(band_x(i), band_y(g_spectrum_peaks.peaks[i]));
+        }
+        dl->AddPolyline(pts.data(), static_cast<int>(k),
+                        IM_COL32(255, 255, 255, 110), 0, 1.0f);
+    }
+
+    // Frequency-axis anchors inside the bottom edge.
+    static const float kAnchors[] = { 30.0f, 200.0f, 1000.0f, 5000.0f, 20000.0f };
+    static const char* const kAnchorLabels[] = { "30", "200", "1k", "5k", "20k" };
+    const ImU32 axis_col = IM_COL32(255, 255, 255, 90);
+    for (size_t i = 0; i < std::size(kAnchors); ++i) {
+        const float f = kAnchors[i];
+        if (f < min_f || f > max_f) continue;
+        const float x = origin.x + freq_to_x(f, scale, min_f, max_f, size.x);
+        // Tick mark
+        dl->AddLine(ImVec2(x, br.y - 1.0f), ImVec2(x, br.y - 5.0f), axis_col, 1.0f);
+        // Label
+        const ImVec2 ts = ImGui::CalcTextSize(kAnchorLabels[i]);
+        const float lx = std::clamp(x - ts.x * 0.5f, origin.x + 1.0f, br.x - ts.x - 1.0f);
+        dl->AddText(ImVec2(lx, br.y - ts.y - 1.0f), axis_col, kAnchorLabels[i]);
+    }
+
+    dl->AddRect(origin, br, kColorOutline, kBarRounding);
+    ImGui::Dummy(size);
+}
+
+// ---- Spectrum: vertical orientation (alternate) -------------------------
+//
+// Bands stacked top-to-bottom, each filling the full pane width based on
+// amplitude. Per-band height = pane_height / N (with leftover pixels
+// distributed across the first few rows so the total fills the pane). Same
+// per-band hue gradient as the horizontal mode.
+void render_spectrum_vertical(std::span<const float> values, float amp,
+                               ImVec2 size) {
+    using namespace overlay_style;
+    if (values.empty() || size.x <= 0.0f || size.y <= 0.0f) return;
+
+    auto* dl = ImGui::GetWindowDrawList();
+    const ImVec2 origin = ImGui::GetCursorScreenPos();
+    const ImVec2 br(origin.x + size.x, origin.y + size.y);
+
+    dl->AddRectFilled(origin, br, kColorBg, kBarRounding);
+
+    const size_t n = values.size();
+    const int total_h = static_cast<int>(size.y);
+    const int base_row = total_h / static_cast<int>(std::max<size_t>(1, n));
+    const int leftover = total_h - base_row * static_cast<int>(n);
+
+    float y = origin.y;
     for (size_t i = 0; i < n; ++i) {
         const float v = std::clamp(values[i] * amp, 0.0f, 1.0f);
         const float t = static_cast<float>(i) / static_cast<float>(std::max<size_t>(1, n - 1));
-        const ImU32 col = IM_COL32(
-            25 + static_cast<int>(230 * (1.0f - t)),
-            25 + static_cast<int>(230 * t),
-            230, 255);
-        const ImVec2 bar_tl(start.x, start.y + i * bar_h);
-        const ImVec2 bar_br(start.x + v * width, bar_tl.y + bar_h);
-        dl->AddRectFilled(bar_tl, bar_br, col, kBarRounding);
-        dl->AddRect(bar_tl, ImVec2(start.x + width, bar_tl.y + bar_h),
-                    kColorOutline, kBarRounding);
+        const int row_h = base_row + (static_cast<int>(i) < leftover ? 1 : 0);
+        const float y_next = y + static_cast<float>(row_h);
+        if (v > 0.0f) {
+            dl->AddRectFilled(ImVec2(origin.x, y),
+                              ImVec2(origin.x + v * size.x, y_next),
+                              band_color(t), 0.0f);
+        }
+        y = y_next;
     }
-    ImGui::Dummy(ImVec2(width, bar_h * static_cast<float>(n)));
+
+    dl->AddRect(origin, br, kColorOutline, kBarRounding);
+    ImGui::Dummy(size);
 }
+
 
 // Build the live hint string for each section.
 const char* current_source_label(AudioSystem& system, const config::Settings& cfg) {
@@ -446,13 +650,13 @@ static void section_levels(const AudioSnapshot& snap, config::Settings& cfg, boo
     const float vol_amp = cfg.frequency.amplifier_volume;
     const ImU32 fill = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
 
-    meter_row("Volume:", std::clamp(snap.volume * vol_amp, 0.0f, 1.0f), fill);
+    meter_row("Volume", std::clamp(snap.volume * vol_amp, 0.0f, 1.0f), fill);
 
     subgroup_label("Stereo:");
     ImGui::Indent(kSubGroupIndent);
-    meter_row("Left:",  std::clamp(snap.volume_left  * vol_amp, 0.0f, 1.0f), fill);
-    meter_row("Right:", std::clamp(snap.volume_right * vol_amp, 0.0f, 1.0f), fill);
-    center_meter_row("Pan:", snap.audio_pan);
+    meter_row("Left",  std::clamp(snap.volume_left  * vol_amp, 0.0f, 1.0f), fill);
+    meter_row("Right", std::clamp(snap.volume_right * vol_amp, 0.0f, 1.0f), fill);
+    center_meter_row("Pan", snap.audio_pan);
     ImGui::Unindent(kSubGroupIndent);
 
     if (show) {
@@ -485,13 +689,13 @@ static void section_beat(const AudioSnapshot& snap, config::Settings& cfg, bool&
 
     const ImU32 fill = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
 
-    meter_row("Beat:",          std::clamp(snap.beat,       0.0f, 1.0f), fill);
-    meter_row("Beat position:", std::clamp(snap.beat_phase, 0.0f, 1.0f), fill);
+    meter_row("Beat",          std::clamp(snap.beat,       0.0f, 1.0f), fill);
+    meter_row("Beat position", std::clamp(snap.beat_phase, 0.0f, 1.0f), fill);
     if (snap.tempo_detected) {
-        info_row("Tempo:", "%.1f BPM (%.0f%% confidence)",
+        info_row("Tempo", "%.1f BPM (%.0f%% confidence)",
                  snap.tempo_bpm, snap.tempo_confidence * 100.0f);
     } else {
-        label_left("Tempo:");
+        label_left("Tempo");
         ImGui::TextDisabled("searching... (%.1f BPM, %.0f%% confidence)",
                             snap.tempo_bpm, snap.tempo_confidence * 100.0f);
     }
@@ -535,23 +739,97 @@ static void section_beat(const AudioSnapshot& snap, config::Settings& cfg, bool&
 }
 
 // ---- Spectrum (was: Frequency Bands) ------------------------------------
+//
+// The spectrum panel has two render orientations (toggled by the inline
+// "~" button in the section header):
+//   - Horizontal (default): frequency on X, amplitude on Y, smooth filled
+//     shape with peak-hold trace and frequency-axis anchors.
+//   - Vertical (alternate): bands stacked top-to-bottom, each filling the
+//     full pane width based on amplitude.
+// Both render into a fixed 300 px tall pane with variable width, so the
+// panel's footprint stays stable across band-count changes.
+
+constexpr float kSpectrumPaneHeight = 300.0f;
 
 static void section_spectrum(const AudioSnapshot& snap, config::Settings& cfg, bool& dirty) {
     using namespace overlay_style;
+    using Orient = config::UiConfig::SpectrumOrientation;
 
-    const uint32_t n = std::min<uint32_t>(snap.freq_band_count, 64);
+    const uint32_t n = std::min<uint32_t>(snap.freq_band_count,
+                                           static_cast<uint32_t>(kSpectrumMaxBands));
     char hint[24];
     std::snprintf(hint, sizeof(hint), "%u bands", n);
-    const bool show = section_header_with_settings("Spectrum", hint, "spectrum");
+
+    // Custom section header: title + hint + ~ toggle + subtle settings
+    // disclosure, all on one line.
+    ImGui::PushID("spectrum");
+    ImGui::Spacing();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Spectrum");
+    ImGui::SameLine();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("(%s)", hint);
+
+    ImGuiStorage* storage = ImGui::GetStateStorage();
+    const ImGuiID state_key = ImGui::GetID("settings_open");
+    bool show = storage->GetBool(state_key, false);
+
+    // Compute right-aligned position for [~] [settings] cluster.
+    const char* tilde = "~";
+    const char* settings_label = show ? "settings *" : "settings \xC2\xB7";
+    const float pad      = ImGui::GetStyle().FramePadding.x * 2.0f;
+    const float spacing  = ImGui::GetStyle().ItemSpacing.x;
+    const float tilde_w    = ImGui::CalcTextSize(tilde).x          + pad;
+    const float settings_w = ImGui::CalcTextSize(settings_label).x + pad;
+    cursor_to_right_for(tilde_w + spacing + settings_w);
+
+    // ~ orientation toggle.
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.12f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1, 1, 1, 0.20f));
+    ImGui::PushStyleColor(ImGuiCol_Text,
+                          ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    if (ImGui::SmallButton(tilde)) {
+        cfg.ui.spectrum_orientation =
+            (cfg.ui.spectrum_orientation == Orient::Horizontal)
+                ? Orient::Vertical : Orient::Horizontal;
+        dirty = true;
+    }
+    ImGui::PopStyleColor(4);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%s", cfg.ui.spectrum_orientation == Orient::Horizontal
+            ? "Switch to vertical band stack"
+            : "Switch to horizontal spectrum");
+    }
+
+    // Subtle settings disclosure (inline; mirrors subtle_settings_toggle).
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.08f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1, 1, 1, 0.16f));
+    ImGui::PushStyleColor(ImGuiCol_Text,
+                          ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    if (ImGui::SmallButton(settings_label)) show = !show;
+    ImGui::PopStyleColor(4);
+    storage->SetBool(state_key, show);
+
+    ImGui::Separator();
+    ImGui::PopID();
 
     const float bands_amp = cfg.frequency.amplifier_bands;
+    const float pane_w = std::max(80.0f, ImGui::GetContentRegionAvail().x);
+    const std::span<const float> values(snap.freq_bands.data(), n);
 
-    ImGui::BeginChild("##bands_compact",
-                      ImVec2(0.0f, kBarHeightThin * static_cast<float>(n) + 12.0f),
-                      true, ImGuiWindowFlags_NoScrollbar);
-    compact_band_bars(std::span<const float>(snap.freq_bands.data(), n),
-                      bands_amp, ImGui::GetContentRegionAvail().x);
-    ImGui::EndChild();
+    if (cfg.ui.spectrum_orientation == Orient::Horizontal) {
+        render_spectrum_horizontal(values, bands_amp,
+                                    ImVec2(pane_w, kSpectrumPaneHeight),
+                                    cfg.frequency.band_scale,
+                                    cfg.frequency.min_freq,
+                                    cfg.frequency.max_freq);
+    } else {
+        render_spectrum_vertical(values, bands_amp,
+                                  ImVec2(pane_w, kSpectrumPaneHeight));
+    }
 
     if (show) {
         ImGui::Indent(kSubGroupIndent);
@@ -639,8 +917,7 @@ static void section_spatial(const AudioSnapshot& snap, config::Settings& cfg, bo
     ImGui::SameLine();
     ImGui::BeginGroup();
     for (int i = 0; i < 8; ++i) {
-        char buf[8]; std::snprintf(buf, sizeof(buf), "%s:", labels[i]);
-        meter_row(buf, std::clamp(snap.direction8[i] * dir_amp, 0.0f, 1.0f), fill, "%.2f");
+        meter_row(labels[i], std::clamp(snap.direction8[i] * dir_amp, 0.0f, 1.0f), fill, "%.2f");
     }
     ImGui::EndGroup();
 
@@ -670,23 +947,32 @@ static void section_advanced(const AudioSnapshot& snap, config::Settings& cfg, b
         ImGui::SameLine();
         ImGui::Text("%.2f", v);
     };
-    leveled_row("Volume:", snap.volume_norm);
-    leveled_row("Bass:",   snap.bass_norm);
-    leveled_row("Mid:",    snap.mid_norm);
-    leveled_row("Treble:", snap.treb_norm);
+    {
+        TightRowSpacing tight;
+        leveled_row("Volume", snap.volume_norm);
+        leveled_row("Bass",   snap.bass_norm);
+        leveled_row("Mid",    snap.mid_norm);
+        leveled_row("Treble", snap.treb_norm);
+    }
     ImGui::Unindent(kSubGroupIndent);
 
     subgroup_label("Energy phases:");
     ImGui::Indent(kSubGroupIndent);
-    meter_row("Volume:", snap.phase_volume, fill);
-    meter_row("Bass:",   snap.phase_bass,   fill);
-    meter_row("Treble:", snap.phase_treble, fill);
+    {
+        TightRowSpacing tight;
+        meter_row("Volume", snap.phase_volume, fill);
+        meter_row("Bass",   snap.phase_bass,   fill);
+        meter_row("Treble", snap.phase_treble, fill);
+    }
     ImGui::Unindent(kSubGroupIndent);
 
     subgroup_label("Perceptual:");
     ImGui::Indent(kSubGroupIndent);
-    meter_row("Brightness:", snap.spectral_centroid, fill, "%.3f");
-    meter_row("Loudness:",   std::clamp(snap.loudness, 0.0f, 1.0f), fill, "%.2f");
+    {
+        TightRowSpacing tight;
+        meter_row("Brightness", snap.spectral_centroid, fill, "%.3f");
+        meter_row("Loudness",   std::clamp(snap.loudness, 0.0f, 1.0f), fill, "%.2f");
+    }
     ImGui::Unindent(kSubGroupIndent);
 
     if (show) {
@@ -752,11 +1038,10 @@ static void section_performance(const AudioSnapshot& snap) {
     for (uint32_t i = 0; i < snap.stage_count; ++i) {
         max_micros = std::max(max_micros, snap.stage_timings[i].micros);
     }
-    char buf[32];
+    TightRowSpacing tight;
     for (uint32_t i = 0; i < snap.stage_count; ++i) {
         const auto& t = snap.stage_timings[i];
-        std::snprintf(buf, sizeof(buf), "%s:", t.name);
-        label_left(buf);
+        label_left(t.name);
         const float frame_h = ImGui::GetFrameHeight();
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const float val_w = g_value_col_w;
@@ -787,7 +1072,7 @@ bool host_port_rows(const char* prefix, std::string& host, int& port,
                      int port_lo, int port_hi) {
     bool changed = false;
 
-    label_left("Host:");
+    label_left("Host");
     char host_buf[64] = {};
     std::snprintf(host_buf, sizeof(host_buf), "%s", host.c_str());
     char id[40]; std::snprintf(id, sizeof(id), "##host_%s", prefix);
@@ -799,7 +1084,7 @@ bool host_port_rows(const char* prefix, std::string& host, int& port,
     ImGui::PopItemWidth();
     tip("Destination address. 127.0.0.1 = this machine. Anything else sends data over the network.");
 
-    label_left("Port:");
+    label_left("Port");
     char id2[40]; std::snprintf(id2, sizeof(id2), "##port_%s", prefix);
     ImGui::PushItemWidth(-1);
     if (ImGui::InputInt(id2, &port)) {
@@ -842,7 +1127,7 @@ void section_integrations(config::Settings& cfg, bool& dirty,
                 dirty = true;
             }
             tip("How often to send each OSC message per second. Default 60.\nTechnical: network.osc.rate_hz, [1, 120]");
-            label_left("Test:");
+            label_left("Test");
             if (ImGui::Button("Send test packet##osc", ImVec2(-1, 0))) {
                 if (auto* c = registry.find_by_id("osc")) c->send_test_packet();
             }
@@ -875,7 +1160,7 @@ void section_integrations(config::Settings& cfg, bool& dirty,
             if (slider_row("Brightness", &cfg.network.openrgb.brightness, 0.0f, 1.0f, "%.2f"))
                 dirty = true;
             tip("Global multiplier on output color intensity (0..1).\nTechnical: network.openrgb.brightness");
-            label_left("Test:");
+            label_left("Test");
             if (ImGui::Button("Flash all LEDs##openrgb", ImVec2(-1, 0))) {
                 if (auto* c = registry.find_by_id("openrgb")) c->send_test_packet();
             }

@@ -47,6 +47,14 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(LoudnessConfig, window_ms)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DebugConfig,
     debug_logging, overlay_enabled)
 
+NLOHMANN_JSON_SERIALIZE_ENUM(UiConfig::SpectrumOrientation, {
+    {UiConfig::SpectrumOrientation::Vertical,   "vertical"},
+    {UiConfig::SpectrumOrientation::Horizontal, "horizontal"},
+})
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(UiConfig,
+    spectrum_orientation)
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(OscConfig,
     enabled, host, port, rate_hz)
 
@@ -57,6 +65,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(NetworkConfig, osc, openrgb)
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Settings,
     schema_version,
-    audio, beat, frequency, agc, chronotensity, loudness, debug, network)
+    audio, beat, frequency, agc, chronotensity, loudness, debug, network, ui)
 
 }  // namespace lw::config
