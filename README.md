@@ -97,7 +97,7 @@ Full address schema, settings, integration recipes for popular hosts, and limita
 
 Install [OpenRGB](https://openrgb.org), enable its SDK server (**Settings → SDK Server → Enable Server**), and flip the **OpenRGB** toggle in the overlay. Default destination `127.0.0.1:6742`.
 
-The default mapping paints all LEDs as a spectrum-driven gradient (bass → blue, treble → red), modulated by AGC volume and beat flash. It's opinionated rather than configurable in v1, so plugging in a new device works out of the box. If the server isn't reachable, the toggle flips itself back off so the UI matches reality.
+The default mapping paints all LEDs as a spectrum-driven gradient (bass → blue, treble → red), modulated by AGC volume and beat flash. It's opinionated rather than configurable in v1, so plugging in a new device works out of the box.
 
 Prerequisites, the full mapping math, failure-mode behavior, and limitations are in **[docs/openrgb.md](docs/openrgb.md)**.
 
