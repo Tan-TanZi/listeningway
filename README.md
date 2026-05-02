@@ -115,7 +115,7 @@ The overlay has a single **Audio Source** dropdown:
 
 - **System Audio (WASAPI Loopback)** is the default. Captures everything you hear on the default playback device. Works on Windows 10 and 11.
 - **Game Audio Only (Process Loopback)** captures the host process only, so Discord, browsers, and music apps stop bleeding into the visualization. Requires Windows 10 22H2 (build 20348+) or Windows 11; the option is grayed on older builds. Design notes in [ADR-0009](docs/adr/0009-process-audio-source.md).
-- **None (Off)** disables analysis cleanly; uniforms zero out, OSC stops sending, OpenRGB goes idle.
+- **None (Off)** disables analysis completely.
 
 You can change the source at any time from the overlay.
 
