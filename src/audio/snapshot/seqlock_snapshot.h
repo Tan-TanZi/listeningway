@@ -76,8 +76,20 @@ public:
 private:
     static constexpr int kMaxSpin = 4;
 
+    // The 64-byte alignment on `data_` is deliberate: it forces the seq
+    // counter and the payload onto separate cache lines so writer-side
+    // updates to the counter don't false-share with reader-side payload
+    // copies. MSVC's C4324 warns when alignas() introduces padding, which
+    // is exactly the intent here, so suppress just for this declaration.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)  // structure padded due to alignas
+#endif
     alignas(64) std::atomic<uint64_t> seq_{0};
     alignas(64) AudioSnapshot data_{};
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 };
 
 }  // namespace lw

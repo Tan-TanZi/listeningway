@@ -28,6 +28,20 @@ find_package(readerwriterqueue CONFIG REQUIRED)
 # Vendored OpenRGB SDK (third_party/Youda008-OpenRGB-cppSDK).
 add_subdirectory(third_party/Youda008-OpenRGB-cppSDK EXCLUDE_FROM_ALL)
 
+# Mark vendored library include directories as SYSTEM so consumers (this
+# addon target) compile them under MSVC's /external:W0, the same path used
+# for vcpkg-installed packages. Suppresses third-party warnings without
+# patching upstream sources.
+foreach(_ext_target orgbsdk CppUtils-Essential CppUtils-Network)
+    if(TARGET ${_ext_target})
+        get_target_property(_ext_includes ${_ext_target} INTERFACE_INCLUDE_DIRECTORIES)
+        if(_ext_includes)
+            set_target_properties(${_ext_target} PROPERTIES
+                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_ext_includes}")
+        endif()
+    endif()
+endforeach()
+
 # --- The addon target ----------------------------------------------------
 add_library(${PROJECT_NAME} SHARED
     # Top-level entry
@@ -149,13 +163,20 @@ if(MSVC)
         /Zc:preprocessor
         /Zc:__cplusplus
         /MP
+        # Silence warnings from /external:I-marked include paths (vcpkg
+        # packages and the SYSTEM-marked vendored libraries above). Our own
+        # code still compiles under /W4.
+        /external:W0
     )
     set_target_properties(${PROJECT_NAME} PROPERTIES
         LINK_FLAGS "/NODEFAULTLIB:LIBCMT")
 
-    # Vendored libraries: relax /W4 because we don't control upstream warnings.
+    # tinyosc is a vendored two-file C library. Relax to /W3 and explicitly
+    # disable C4018 (signed/unsigned compare) which the upstream code uses
+    # in a benign way; suppressing here keeps our build green without
+    # patching upstream.
     set_source_files_properties(third_party/tinyosc/tinyosc.c
-        PROPERTIES COMPILE_OPTIONS "/W3")
+        PROPERTIES COMPILE_OPTIONS "/W3;/wd4018")
 endif()
 
 # --- Tests ---------------------------------------------------------------
