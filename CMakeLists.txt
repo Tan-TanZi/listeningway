@@ -92,6 +92,8 @@ add_library(${PROJECT_NAME} SHARED
     # Beat-tracker submodules (clean-room, see docs/adr/research-notes-beat.md)
     src/audio/dsp/beat/odf_csd.h
     src/audio/dsp/beat/odf_csd.cpp
+    src/audio/dsp/beat/odf_buffer.h
+    src/audio/dsp/beat/odf_buffer.cpp
 
     # Snapshot publication
     src/audio/snapshot/audio_snapshot.h
