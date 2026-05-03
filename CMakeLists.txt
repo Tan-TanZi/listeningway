@@ -131,6 +131,8 @@ add_library(${PROJECT_NAME} SHARED
     # OpenRGB pattern catalogue (per-zone-type dispatch, see ADR-0014)
     src/output/openrgb_patterns/pattern_common.h
     src/output/openrgb_patterns/pattern_common.cpp
+    src/output/openrgb_patterns/single_patterns.h
+    src/output/openrgb_patterns/single_patterns.cpp
 
     # Overlay (ImGui)
     src/overlay/overlay.h
