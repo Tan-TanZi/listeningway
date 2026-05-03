@@ -96,6 +96,8 @@ add_library(${PROJECT_NAME} SHARED
     src/audio/dsp/beat/odf_buffer.cpp
     src/audio/dsp/beat/comb_tempo.h
     src/audio/dsp/beat/comb_tempo.cpp
+    src/audio/dsp/beat/beat_tracker.h
+    src/audio/dsp/beat/beat_tracker.cpp
 
     # Snapshot publication
     src/audio/snapshot/audio_snapshot.h
