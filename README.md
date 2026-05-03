@@ -75,7 +75,7 @@ A few uniforms worth knowing:
 | `listeningway_loudness` | K-weighted (BS.1770) momentary loudness | Perceptually-weighted intensity. Linear, not LUFS log. |
 | `listeningway_phase_volume`, `phase_bass`, `phase_treble` | Energy-accumulator phase, [0, 1) | BPM-independent phase: a "loudness counter" that advances faster when the music is louder. Useful where `beat_phase` falls back to 0. |
 | `listeningway_volume_history[64]` | Last 64 frames of `volume`, oldest at index 0 | Waterfall and trail effects without shader-side ring buffers. |
-| `listeningway_freqbands_history[N×64]` | Per-band history, **band-major**: `[band * 64 + frame]`, frame 0 oldest | Spectrogram-grade material. |
+| `listeningway_freqbands_history[N×32]` | Per-band history, **band-major**: `[band * 32 + frame]`, frame 0 oldest | Spectrogram-grade material. |
 
 The full uniform registry, including stability tier (Stable vs Experimental), lives in [STABILITY.md](STABILITY.md). That document is the public API contract.
 

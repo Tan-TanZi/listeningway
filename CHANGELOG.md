@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`Listeningway.fx` failed to compile under D3D11.** The
+  `Listeningway_FreqBandsHistory[N*64]` uniform alone consumed 4096
+  float4 slots at the default 64 bands, exactly the D3D11 constant
+  buffer cap. With every other Listeningway uniform on top, the
+  cbuffer overflowed (`Index Dimension 2 out of range, 4289 specified
+  max 4096`) and the shader rejected with X8000. The history array is
+  now 32 frames instead of 64 (`Listeningway_FreqBandsHistory[N*32]`,
+  ~8 KB at 64 bands), leaving plenty of headroom in the cbuffer for
+  user-shader uniforms. `kBandsHistoryFrames` is decoupled from
+  `kVolumeHistoryLength` (volume history stays at 64).
 - **Stereo spatial mapping.** Hard-Right and hard-Left audio no longer
   bias toward the front-right / front-left buckets. The previous v1
   routing put right-only content at 70% FR + 30% R, which assumed a

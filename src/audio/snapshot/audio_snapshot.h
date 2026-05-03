@@ -85,7 +85,14 @@ struct AudioSnapshot {
     // but the publisher writes only the active prefix (`freq_band_count`
     // columns) so shaders declare their uniform at the build-time
     // DEFAULT_NUM_BANDS constant.
-    static constexpr size_t kBandsHistoryFrames = kVolumeHistoryLength;  // 64
+    //
+    // Frame count is independent of kVolumeHistoryLength and capped at
+    // 32 so the resulting shader uniform (DEFAULT_NUM_BANDS × frames =
+    // 64 × 32 = 2048 float4 slots at the default band count) fits in a
+    // single D3D11 constant buffer (max 4096 float4 slots) with room to
+    // spare for the rest of the Listeningway uniforms and any user-shader
+    // additions. At 60 fps this is ~0.5 s of history; at 30 fps ~1 s.
+    static constexpr size_t kBandsHistoryFrames = 32;
     std::array<std::array<float, kMaxBands>, kBandsHistoryFrames>
         freq_bands_history{};
     uint32_t freq_bands_history_head = 0;
