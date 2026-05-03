@@ -34,6 +34,7 @@ ADRs follow [MADR](https://adr.github.io/madr/) structure:
 | [0010](0010-network-outputs.md) | Network outputs and the `IOutputConsumer` abstraction | Accepted |
 | [0011](0011-osc-output.md) | OSC output consumer: tinyosc embed + address schema | Accepted |
 | [0012](0012-openrgb-output.md) | OpenRGB output consumer: cppSDK embed + opinionated mapping | Accepted |
+| [0013](0013-beat-tracker-rewrite.md) | Beat tracker: clean-room Davies / Plumbley / Stark implementation | Accepted |
 
 ## Reading order for new contributors
 

@@ -5,56 +5,74 @@ All notable changes to Listeningway will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0-beta.3] - 2026-05-02
+
+Clean-room beat-tracker rewrite, stereo spatial mapping fix, two new
+spatial tunables, and a D3D11 cbuffer fix that gets `Listeningway.fx`
+compiling again.
 
 ### Changed
 
+- **Beat detector replaced with a clean-room implementation** of the
+  Davies / Plumbley / Stark algorithm chain (CSD-HWR onset function →
+  shift-invariant comb-filterbank tempo with Rayleigh prior and
+  41-state Viterbi smoother → cumulative-score beat tracker with
+  log-Gaussian transition window and forward-projected beat
+  prediction). Replaces the v1 amplitude-flux + naive-autocorrelation
+  detector that produced ~20% tempo confidence even on metronomic
+  dance music. The new detector reports honest aubio-style peak/sum
+  confidence in a usable range, locks tempo within a single octave to
+  mitigate octave errors, and predicts the next beat sub-hop ahead
+  rather than only reporting beats after they happen. See
+  [ADR-0013](docs/adr/0013-beat-tracker-rewrite.md) for the design and
+  [docs/adr/research-notes-beat.md](docs/adr/research-notes-beat.md)
+  for the underlying study of BTrack and aubio.
 - **Beat Detection panel redesigned around Auto / Profile / Custom**,
   following the convergent UX of pro audio tools (Logic Smart Tempo,
-  iZotope Master Assistant, LANDR mastering, Ableton Warp). The panel
-  now leads with a Mode segmented control:
-  - **Auto** (default). The system observes the recent onset rate and
-    adapts an internal pulse-strength multiplier to hit a target rate
-    (~2 onsets/sec) over a few seconds. Falls back to neutral during
-    silence. A subtle status badge shows "Adapting…" while converging
-    and "Locked" once stable for ~3 s. No knob.
+  iZotope Master Assistant, LANDR, Ableton Warp). Mode segmented
+  control at the top of the Settings disclosure:
+  - **Auto** (default). pulse_strength = 1.0; the underlying tracker
+    self-tunes via its own Viterbi and cumulative-score state. A
+    subtle status badge shows "Adapting…" while tempo confidence is
+    settling and "Locked" once it has been above threshold for ~3 s.
+    No knob to tune.
   - **Profile**. A second segmented control picks one of three named
-    signal-character presets — **Percussive** (drums / EDM / hip-hop:
-    bass-driven, tight pulse), **Melodic** (vocal / rock / jazz /
-    classical: balanced bands), **Sustained** (ambient / cinematic /
-    sparse: sensitive across bands, longer decay). Names follow
-    Ableton's "describe the signal, not the genre" convention so they
-    don't age badly. Each profile sets pulse strength, per-band
-    weights, and decay tau in one go.
-  - **Custom**. The Pulse Strength slider (0..3) is exposed for users
-    who want direct control. Switching from Auto or Profile into
-    Custom seeds the slider with whatever the system was using a
-    moment ago — no jarring reset.
+    signal-character presets — **Percussive** (snappy 120 ms decay
+    for drums / EDM / hip-hop), **Melodic** (160 ms decay for vocal /
+    rock / jazz / classical), **Sustained** (230 ms decay for ambient /
+    cinematic / sparse). Names follow Ableton Warp's "describe the
+    signal, not the genre" convention so they don't age badly. Each
+    profile sets `(pulse_strength, decay_tau)` together.
+  - **Custom**. The Pulse Strength slider (0..3) is exposed. Switching
+    from Auto or Profile into Custom seeds the slider with whatever
+    the system was using a moment ago — no jarring reset (Lightroom's
+    "Auto button moves the visible sliders" pattern).
   All ten v1 knobs (`threshold_lambda`, `threshold_window_ms`,
   `refractory_ms`, `phase_kp`, `phase_ki`, `tempo_prior_bpm`,
   `tempo_prior_sigma`, `tempo_window_sec`, `beat_decay_per_sec`, the
   `algorithm` switch) are gone from the UI and from `BeatConfig`.
-- **Multi-band onset aggregation.** The detector reads `flux_low`,
-  `flux_mid`, and `flux_high` separately, maintains a per-band EMA
-  baseline + variance as the auto-sensitivity reference, and fires
-  when any band crosses `baseline + N · sigma`. Per-band weights are
-  set by the active mode (Auto / Profile-default uses bass-weighted
-  1.0 / 0.7 / 0.5; Profile selectively rebalances). Mitigates the
-  "sustained loud passage saturates the threshold" failure that bit
-  the previous single-band amplitude-flux detector.
-- **`listeningway_beat` is now a continuous pulse curve.** Same [0, 1]
-  range, same shader name, but each onset attacks instantly to a
-  strength graded by how loudly it stood out from its band's recent
-  baseline, and decays exponentially with a mode-dependent time
-  constant (120 ms in Percussive, 230 ms in Sustained) instead of the
-  v1 spike-to-1-and-linear-decay. Smoother to read in shaders; missed
-  beats just go quiet rather than flicker wrong.
-- Tempo (`tempo_bpm`, `tempo_confidence`, `tempo_detected`) and beat
-  phase (`beat_phase`) stay published as instrumentation but no longer
-  have any UI knobs. Tempo search is restricted to a single octave
-  (60..180 BPM) internally to mitigate octave errors. Shaders gate on
-  `tempo_confidence > 0.4` and fall back to the chronotensity phases
-  when not locked, per the AudioLink design pattern.
+- **`listeningway_beat` is now a continuous pulse curve** driven by
+  the new tracker. Same [0, 1] range, same shader name. Each predicted
+  beat attacks instantly to `pulse_strength` and decays exponentially
+  with the mode's `decay_tau` — no per-frame jitter, no broken
+  spikes when the tracker is unsure. Existing v1 shaders that read
+  `Listeningway_Beat` as "a value that gets bigger on beats and
+  smaller otherwise" continue to work; the value just feels better.
+- **`listeningway_beat_phase` is now a forward prediction.** Sub-hop
+  time-to-next-beat divided by the beat period — a smooth countdown
+  between detected beats rather than the v1 PLL's "stale value
+  between detections."
+- Tempo (`tempo_bpm`, `tempo_confidence`, `tempo_detected`) and
+  `beat_phase` stay as instrumentation but no longer have any UI
+  knobs. Tempo search restricted internally to one octave (80..160
+  BPM via the Viterbi observation vector, with the comb filterbank's
+  harmonic summing absorbing 2× and 4× aliases). Shaders gate on
+  `tempo_confidence > 0.05` (the new aubio-style metric) and fall
+  back to the chronotensity phases when not locked, per the AudioLink
+  design pattern.
+- **FFT stage now also publishes per-bin phase** (`AnalysisFrame::phases`)
+  alongside magnitudes. Required by the new CSD-HWR onset function
+  in BeatStage; ignored by every other stage.
 
 ### Fixed
 

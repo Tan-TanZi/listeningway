@@ -2,7 +2,7 @@
 
 # Listeningway
 
-**Real-time audio analysis for ReShade shaders, OSC, and OpenRGB.**
+**Real-time audio analysis DSP add-on for ReShade**
 
 ![Listeningway Showcase](https://github.com/user-attachments/assets/8a11d6b6-bdea-4c31-9614-dbfb7ad8819f)
 
@@ -25,11 +25,11 @@ You need ReShade 6.3.3 or newer (API 14+) on Windows 10 or 11. AuroraShade R10 i
 1. Download the latest release from [the releases page](https://github.com/gposingway/Listeningway/releases/latest). The ZIP contains `Listeningway.addon`, `Listeningway.fx`, and `ListeningwayUniforms.fxh`.
 2. Drop the files in:
 
-   | File | Where | Why |
-   |---|---|---|
-   | `Listeningway.addon` | Game folder, next to your ReShade DLL (`dxgi.dll`, `d3d11.dll`, ...). Not inside `reshade-shaders`. | ReShade loads `.addon` files from the same folder as the DLL. |
-   | `Listeningway.fx` | `reshade-shaders\Shaders\` | Reference shader showing all uniforms in use. |
-   | `ListeningwayUniforms.fxh` | `reshade-shaders\Shaders\` | Header to `#include` from your own shaders. |
+   | File                       | Where                                                                                               | Why                                                           |
+   | -------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+   | `Listeningway.addon`       | Game folder, next to your ReShade DLL (`dxgi.dll`, `d3d11.dll`, ...). Not inside `reshade-shaders`. | ReShade loads `.addon` files from the same folder as the DLL. |
+   | `Listeningway.fx`          | `reshade-shaders\Shaders\`                                                                          | Reference shader showing all uniforms in use.                 |
+   | `ListeningwayUniforms.fxh` | `reshade-shaders\Shaders\`                                                                          | Header to `#include` from your own shaders.                   |
 
 3. Launch the game and open the ReShade overlay. The **Listeningway** panel appears. Pick a source from the dropdown, then enable `Listeningway.fx` to see it react.
 
@@ -65,17 +65,17 @@ technique AudioReactive {
 
 A few uniforms worth knowing:
 
-| Uniform | What it is | When you'd reach for it |
-|---|---|---|
-| `listeningway_volume_norm` | AGC-normalized energy. 1.0 = recent average. | Replaces per-effect "sensitivity" sliders. Reacts the same way to loud and quiet music. |
-| `listeningway_volume_att` | Smoothed `volume_norm` (asymmetric attack/release) | When you want the AGC value but not the jitter. |
-| `listeningway_bass_norm`, `mid_norm`, `treb_norm` | AGC-normalized macro bands | "Bass kick" or "treble glitter" effects without genre-specific tuning. |
-| `listeningway_freqbands16`, `freqbands32` | Pre-binned spectrum reductions | Fixed-size spectrum for shaders that don't want to depend on `numbands`. |
-| `listeningway_spectral_centroid` | [0, 1] brightness | Color-temperature shifts; "warm vs bright" mapping. |
-| `listeningway_loudness` | K-weighted (BS.1770) momentary loudness | Perceptually-weighted intensity. Linear, not LUFS log. |
-| `listeningway_phase_volume`, `phase_bass`, `phase_treble` | Energy-accumulator phase, [0, 1) | BPM-independent phase: a "loudness counter" that advances faster when the music is louder. Useful where `beat_phase` falls back to 0. |
-| `listeningway_volume_history[64]` | Last 64 frames of `volume`, oldest at index 0 | Waterfall and trail effects without shader-side ring buffers. |
-| `listeningway_freqbands_history[N×32]` | Per-band history, **band-major**: `[band * 32 + frame]`, frame 0 oldest | Spectrogram-grade material. |
+| Uniform                                                   | What it is                                                              | When you'd reach for it                                                                                                               |
+| --------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `listeningway_volume_norm`                                | AGC-normalized energy. 1.0 = recent average.                            | Replaces per-effect "sensitivity" sliders. Reacts the same way to loud and quiet music.                                               |
+| `listeningway_volume_att`                                 | Smoothed `volume_norm` (asymmetric attack/release)                      | When you want the AGC value but not the jitter.                                                                                       |
+| `listeningway_bass_norm`, `mid_norm`, `treb_norm`         | AGC-normalized macro bands                                              | "Bass kick" or "treble glitter" effects without genre-specific tuning.                                                                |
+| `listeningway_freqbands16`, `freqbands32`                 | Pre-binned spectrum reductions                                          | Fixed-size spectrum for shaders that don't want to depend on `numbands`.                                                              |
+| `listeningway_spectral_centroid`                          | [0, 1] brightness                                                       | Color-temperature shifts; "warm vs bright" mapping.                                                                                   |
+| `listeningway_loudness`                                   | K-weighted (BS.1770) momentary loudness                                 | Perceptually-weighted intensity. Linear, not LUFS log.                                                                                |
+| `listeningway_phase_volume`, `phase_bass`, `phase_treble` | Energy-accumulator phase, [0, 1)                                        | BPM-independent phase: a "loudness counter" that advances faster when the music is louder. Useful where `beat_phase` falls back to 0. |
+| `listeningway_volume_history[64]`                         | Last 64 frames of `volume`, oldest at index 0                           | Waterfall and trail effects without shader-side ring buffers.                                                                         |
+| `listeningway_freqbands_history[N×32]`                    | Per-band history, **band-major**: `[band * 32 + frame]`, frame 0 oldest | Spectrogram-grade material.                                                                                                           |
 
 The full uniform registry, including stability tier (Stable vs Experimental), lives in [STABILITY.md](STABILITY.md). That document is the public API contract.
 
@@ -132,27 +132,37 @@ Trimmed `Listeningway.json` example:
   "schema_version": 1,
   "audio": {
     "analysis_enabled": true,
-    "capture_source_code": "system",  // "system" | "process" | "off"
-    "pan_smoothing": 0.1
+    "capture_source_code": "system", // "system" | "process" | "off"
+    "pan_smoothing": 0.1,
   },
   "frequency": {
     "band_count": 64,
     "fft_size": 2048,
-    "band_scale": "Mel",              // "Linear" | "Log" | "Mel"
-    "log_strength": 0.10,
+    "band_scale": "Mel", // "Linear" | "Log" | "Mel"
+    "log_strength": 0.1,
     "min_freq": 30.0,
     "max_freq": 22050.0,
-    "equalizer_bands": [1.11, 1.29, 2.11, 1.80, 1.63]
+    "equalizer_bands": [1.11, 1.29, 2.11, 1.8, 1.63],
   },
   "beat": {
-    "pulse_strength": 1.0              // single user-facing knob; 0..3
+    "pulse_strength": 1.0, // single user-facing knob; 0..3
   },
-  "agc":      { "window_seconds": 5.0, "clamp_max": 4.0 },
+  "agc": { "window_seconds": 5.0, "clamp_max": 4.0 },
   "loudness": { "window_ms": 400.0 },
   "network": {
-    "osc":     { "enabled": false, "host": "127.0.0.1", "port": 9000, "rate_hz": 60 },
-    "openrgb": { "enabled": false, "host": "127.0.0.1", "port": 6742, "rate_hz": 30 }
-  }
+    "osc": {
+      "enabled": false,
+      "host": "127.0.0.1",
+      "port": 9000,
+      "rate_hz": 60,
+    },
+    "openrgb": {
+      "enabled": false,
+      "host": "127.0.0.1",
+      "port": 6742,
+      "rate_hz": 30,
+    },
+  },
 }
 ```
 
@@ -162,8 +172,8 @@ V1 configurations are not migrated; v2 writes a fresh file with v2 defaults on f
 
 ## Compatible shader collections
 
-| Collection | Author | Description |
-|---|---|---|
+| Collection     | Author         | Description                                                                                                             |
+| -------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **AS-StageFX** | Leon Aquitaine | Stage and concert visual effects: light beams, strobes, atmosphere. [Repo](https://github.com/LeonAquitaine/as-stagefx) |
 
 If you maintain a shader pack that consumes Listeningway uniforms, send a pull request to add it.
@@ -185,16 +195,16 @@ The wire-layer libraries for the OSC and OpenRGB consumers are vendored under [`
 
 The rest of the dependency stack:
 
-| Library / API | Author | Purpose |
-|---|---|---|
-| [ReShade](https://github.com/crosire/reshade) | crosire | Core framework and SDK |
-| [Dear ImGui](https://github.com/ocornut/imgui) | Omar Cornut | Overlay GUI |
-| [KissFFT](https://github.com/mborgerding/kissfft) | Mark Borgerding | FFT engine |
-| [nlohmann/json](https://github.com/nlohmann/json) | Niels Lohmann | JSON marshalling |
-| [readerwriterqueue](https://github.com/cameron314/readerwriterqueue) | Cameron Desrochers | Lock-free SPSC ring |
-| [GoogleTest](https://github.com/google/googletest) | Google | Unit tests |
-| [rapidcheck](https://github.com/emil-e/rapidcheck) | Emil Eriksson | Property tests |
-| [Microsoft WASAPI](https://docs.microsoft.com/en-us/windows/win32/coreaudio/wasapi/wasapi-api) | Microsoft | Windows audio capture |
+| Library / API                                                                                  | Author             | Purpose                |
+| ---------------------------------------------------------------------------------------------- | ------------------ | ---------------------- |
+| [ReShade](https://github.com/crosire/reshade)                                                  | crosire            | Core framework and SDK |
+| [Dear ImGui](https://github.com/ocornut/imgui)                                                 | Omar Cornut        | Overlay GUI            |
+| [KissFFT](https://github.com/mborgerding/kissfft)                                              | Mark Borgerding    | FFT engine             |
+| [nlohmann/json](https://github.com/nlohmann/json)                                              | Niels Lohmann      | JSON marshalling       |
+| [readerwriterqueue](https://github.com/cameron314/readerwriterqueue)                           | Cameron Desrochers | Lock-free SPSC ring    |
+| [GoogleTest](https://github.com/google/googletest)                                             | Google             | Unit tests             |
+| [rapidcheck](https://github.com/emil-e/rapidcheck)                                             | Emil Eriksson      | Property tests         |
+| [Microsoft WASAPI](https://docs.microsoft.com/en-us/windows/win32/coreaudio/wasapi/wasapi-api) | Microsoft          | Windows audio capture  |
 
 All linked statically. No extra DLLs ship beside the `.addon`.
 
