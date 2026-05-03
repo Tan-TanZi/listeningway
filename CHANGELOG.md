@@ -5,6 +5,107 @@ All notable changes to Listeningway will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-beta.4] - 2026-05-03
+
+OpenRGB integration redesigned around a per-zone-type pattern matrix:
+single-LED accents, linear strips, and matrix grids each get their own
+catalogue of behaviours. Plus a new persistent log file that pays for
+itself the first time a user reports an OpenRGB enumeration problem.
+
+### Changed
+
+- **OpenRGB integration: per-zone-type pattern dispatch** (ADR-0014).
+  The old single-formula spectrum-bar mapping is replaced with three
+  named-pattern catalogues, one per OpenRGB zone type. The settings
+  panel now exposes three dropdowns:
+
+  ```
+  Single (1)    [ Spectral Hue        ▾ ]
+  Linear (2)    [ Spectrum Bar        ▾ ]
+  Matrix (1)    [ Per-Region          ▾ ]
+  ```
+
+  Counters show how many non-empty zones of each type are connected
+  (live-updated on hot-plug). One keyboard or five = same setting.
+  Each catalogue is ordered active → soothing.
+
+  - **Single** (1-LED accents — GPU, AIO pump, single-LED mouse):
+    Beat Flash · Volume Pulse · **Spectral Hue** *(default)* ·
+    Chronotensity Cycle · Static · Off
+  - **Linear** (RAM, case strips, fan rings, motherboard accents):
+    **Spectrum Bar** *(default)* · VU Meter · Chase / Orbit ·
+    Pulse from Center · Stereo Split · Color Wash · Static · Off
+  - **Matrix** (keyboards, mouse pads):
+    Spatial Map · Equalizer Columns · **Per-Region** *(default)* ·
+    Spectrogram Waterfall · Beat Flash · Color Wash · Static · Off
+
+  Headline patterns worth flagging:
+  - **Spatial Map** (matrix) projects `direction8` onto the keyboard's
+    XY layout — left columns light when left-channel audio is loud,
+    top rows when "Front" audio is loud. Uniquely Listeningway —
+    no competitor has the spatial rose signal to drive this.
+  - **Chase / Orbit** (linear) drives a moving comet from
+    `phase_volume` (chronotensity), which keeps moving even when
+    tempo confidence collapses. Solves the "every other tool's
+    beat-locked effect dies on classical / speech / ambient" failure
+    on fan rings and AIO loops.
+  - **Per-Region** (matrix) maps bass→bottom rows, mid→middle,
+    treble→top, beat→bottom row (where the spacebar usually lives).
+    Geometric — no key-label lookup, works on any matrix.
+
+  Defaults are calmer-end picks that work out of the box; users who
+  want maximum activity flip each dropdown to its top entry.
+
+  Per-device pattern overrides, named global profiles, and the
+  canvas-and-place rendering architecture are all deferred to v1.1+
+  per ADR-0014's out-of-scope section.
+
+- **OpenRGB consumer iterates per zone, not per device.** A multi-zone
+  device (e.g. ASUS motherboard with one Linear "Aura Mainboard"
+  zone + three Linear "Aura Addressable" header zones) now renders
+  each zone under the pattern picked for its type, then assembles
+  the full per-LED color array in zone order for one
+  `setDeviceColors()` call. Empty zones (typically unconnected ARGB
+  headers) are skipped and don't count toward the type counter.
+
+### Added
+
+- **`listeningway.log` — persistent diagnostic log.** Lives next to
+  the addon DLL, written when `Debug logging` is checked in the
+  Settings panel. Already-promised in the tooltip for several
+  releases; now actually wired up. Surfaces full OpenRGB connect
+  trace including protocol version, device count from
+  `requestDeviceCount`, devices returned from `requestDeviceList`,
+  per-device + per-zone enumeration (name, type, LED count, matrix
+  dimensions), `switchToCustomMode` failures, and the "device list
+  empty after N attempts" diagnostic from the previous release.
+  Errors are always written; INFO/WARN gated by the checkbox.
+
+- **OpenRGB diagnostic retry + count-vs-list mismatch surfacing.** On
+  empty-device-list responses the consumer retries 3× with 250 ms
+  backoff before reporting; if the retry attempts return Success but
+  zero devices the status line shows the diagnostic
+  ("device list empty after 3 attempts (count: N / Success)") so
+  users can tell the difference between "OpenRGB really has no
+  devices" and "we connected to the wrong OpenRGB instance."
+
+### Documentation
+
+- ADR-0014 (new): OpenRGB visualisation patterns — per-zone-type
+  matrix. Full design rationale, pattern catalogues, defaults,
+  safety constraints (epilepsy band, silence handling, sustained
+  max-white cap), and the alternatives considered (per-device
+  picker, canvas-and-place, profiles).
+- ADR index updated.
+
+### Compatibility
+
+- Settings JSON: backward-compatible. New fields (`pattern_single`,
+  `pattern_linear`, `pattern_matrix`) default through nlohmann's
+  `_WITH_DEFAULT` macro when missing from old configs. The removed
+  v1 OpenRGB-specific fields don't exist; nothing was removed.
+- Shader uniform contract: unchanged.
+
 ## [2.0.0-beta.3] - 2026-05-02
 
 Clean-room beat-tracker rewrite, stereo spatial mapping fix, two new
