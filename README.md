@@ -4,8 +4,9 @@
 
 **Real-time audio analysis DSP add-on for ReShade**
 
-![Listeningway Showcase](https://github.com/user-attachments/assets/07a324e2-46a8-4a36-88ab-3a57e5e4db70)
-![Listeningway Showcase](https://github.com/user-attachments/assets/a474e86f-805b-4726-948b-dac4a6207e13)
+![Listeningway Showcase](https://github.com/user-attachments/assets/64275561-44d5-415d-923f-83028c0facf5)
+![Listeningway Showcase](https://github.com/user-attachments/assets/6244a656-f2ca-4cb6-ad1d-6ef09031275c)
+
 
 [<img src="https://github.com/user-attachments/assets/20794810-9e43-4167-bb0e-faf46275186e">](https://github.com/gposingway/Listeningway/releases/latest)
 
@@ -93,6 +94,12 @@ The full uniform registry, including stability tier (Stable vs Experimental), li
 ## What it integrates with
 
 Listeningway can mirror its analysis out to other tools over the wire. Both integrations are off by default and toggle from the overlay's **Integrations** section.
+
+<div align="center">
+   
+![Listeningway Showcase](https://github.com/user-attachments/assets/ec88741b-f5a5-40fb-907d-67a0ec82783e)
+
+</div>
 
 ### OSC (TouchDesigner, Resolume, Max/MSP, vvvv, ...)
 
