@@ -46,11 +46,24 @@ jobs:
           git tag v${{ steps.get_version.outputs.version }}
           git push origin v${{ steps.get_version.outputs.version }}
 
-      - name: Zip release files
+      - name: Zip release files (x64 + x86)
         run: |
           VERSION=$(cat dist/VERSION.txt | tr -d '\r\n')
           cd dist
-          zip Listeningway-${VERSION}.zip Listeningway.addon Listeningway.fx ListeningwayUniforms.fxh
+          for ARCH in x64 x86; do
+            ADDON_SOURCE="Listeningway-${ARCH}.addon"
+            if [ ! -f "$ADDON_SOURCE" ]; then
+              echo "Missing $ADDON_SOURCE in dist/ — did you run build.bat before pushing?"
+              exit 1
+            fi
+            STAGE="stage-${ARCH}"
+            mkdir -p "$STAGE"
+            cp "$ADDON_SOURCE" "$STAGE/Listeningway.addon"
+            cp Listeningway.fx "$STAGE/Listeningway.fx"
+            cp ListeningwayUniforms.fxh "$STAGE/ListeningwayUniforms.fxh"
+            (cd "$STAGE" && zip "../Listeningway-${ARCH}-${VERSION}.zip" Listeningway.addon Listeningway.fx ListeningwayUniforms.fxh)
+            rm -rf "$STAGE"
+          done
           cd ..
 
       - name: Create or update release
@@ -60,7 +73,8 @@ jobs:
           name: Listeningway v${{ steps.get_version.outputs.version }}
           body_path: release_body.md
           files: |
-            dist/Listeningway-${{ steps.get_version.outputs.version }}.zip
+            dist/Listeningway-x64-${{ steps.get_version.outputs.version }}.zip
+            dist/Listeningway-x86-${{ steps.get_version.outputs.version }}.zip
           prerelease: false
           draft: false
         env:

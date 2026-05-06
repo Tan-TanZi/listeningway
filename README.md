@@ -29,7 +29,14 @@ Listeningway is a ReShade addon that listens to system or per-game audio, analyz
 
 You need ReShade 6.3.3 or newer (API 14+) on Windows 10 or 11. AuroraShade R10 is compatible.
 
-1. Download the latest release from [the releases page](https://github.com/gposingway/Listeningway/releases/latest). The ZIP contains `Listeningway.addon`, `Listeningway.fx`, and `ListeningwayUniforms.fxh`.
+1. Download the latest release from [the releases page](https://github.com/gposingway/Listeningway/releases/latest). Two ZIPs are published per release; **pick the one that matches your game's architecture**:
+
+   | Build                        | Use for                                                                                                          |
+   | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+   | `Listeningway-x64-<ver>.zip` | 64-bit games — FFXIV, FFVII Remake, most modern AAA, anything where Task Manager shows the process without `*32` |
+   | `Listeningway-x86-<ver>.zip` | 32-bit games — Dead Cells, FFX/X-2 HD, Skyrim LE, Dark Souls: PtDE, GTA SA, most pre-2015 indies/JRPGs           |
+
+   Each ZIP contains `Listeningway.addon`, `Listeningway.fx`, and `ListeningwayUniforms.fxh`. The shader files are identical between builds; only the `.addon` differs in architecture. Match your ReShade DLL.
 2. Drop the files in:
 
    | File                       | Where                                                                                               | Why                                                           |
@@ -214,6 +221,8 @@ The rest of the dependency stack:
 | [Microsoft WASAPI](https://docs.microsoft.com/en-us/windows/win32/coreaudio/wasapi/wasapi-api) | Microsoft          | Windows audio capture  |
 
 All linked statically. No extra DLLs ship beside the `.addon`.
+
+The 32-bit (x86) build target was contributed by [**@slendereater-sketch**](https://github.com/slendereater-sketch) (Dru Mitchell-Gary Doney-Jones), with thanks to **SmilingGerm** for surfacing the demand in the r/vjing and r/deadcells communities. Their original port lives at [Listeningway-32bit](https://github.com/slendereater-sketch/Listeningway-32bit); mainline now ships both architectures from the same source tree.
 
 ---
 

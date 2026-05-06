@@ -2,24 +2,25 @@
 cd /d %~dp0 REM Change directory to the script's location
 setlocal
 
-REM --- Configuration ---
+REM ============================================================
+REM  prepare.bat — once-per-machine bootstrap.
+REM  Clones reshade + vcpkg, bootstraps vcpkg, and installs the
+REM  dependency set for BOTH x64-windows-static and x86-windows-static
+REM  triplets (used by build.bat to produce dual-arch addons).
+REM
+REM  Build directories (build-x64/, build-x86/) are CMake-generated
+REM  artefacts — build.bat creates them on demand. Delete them any
+REM  time; build.bat will reconfigure cleanly.
+REM ============================================================
+
 set TOOLS_DIR=tools
 set RESHADE_DIR=third_party\reshade
 set VCPKG_DIR=%TOOLS_DIR%\vcpkg
 set RESHADE_REPO_URL=https://github.com/crosire/reshade.git
 set VCPKG_REPO_URL=https://github.com/microsoft/vcpkg.git
-set BUILD_DIR=build
-set CMAKE_GENERATOR="Visual Studio 17 2022" REM Adjust if needed
-set CMAKE_PLATFORM=x64
-set VCPKG_TOOLCHAIN_FILE=%~dp0%VCPKG_DIR%\scripts\buildsystems\vcpkg.cmake
-set RESHADE_SDK_INCLUDE_PATH=%CD%\third_party\reshade\include
-set VCPKG_TARGET_TRIPLET=x64-windows-static
-
-REM --- Preparation Steps ---
 
 echo Ensuring tools directory exists...
 if not exist "%TOOLS_DIR%" (
-    echo Creating %TOOLS_DIR% directory...
     mkdir "%TOOLS_DIR%"
     if errorlevel 1 (
         echo Failed to create %TOOLS_DIR% directory.
@@ -32,10 +33,9 @@ if not exist "%RESHADE_DIR%\.git" (
     echo ReShade repository not found. Cloning from %RESHADE_REPO_URL% at tag v6.3.3...
     git clone --branch v6.3.3 --depth 1 %RESHADE_REPO_URL% "%RESHADE_DIR%"
     if errorlevel 1 (
-        echo Failed to clone ReShade repository. Please check Git installation and network connection.
+        echo Failed to clone ReShade repository.
         goto failure
     )
-    echo ReShade repository cloned successfully.
 ) else (
     echo ReShade repository found at %RESHADE_DIR%.
     pushd "%RESHADE_DIR%"
@@ -49,10 +49,9 @@ if not exist "%VCPKG_DIR%\.git" (
     echo vcpkg repository not found. Cloning from %VCPKG_REPO_URL%...
     git clone --depth 1 %VCPKG_REPO_URL% "%VCPKG_DIR%"
     if errorlevel 1 (
-        echo Failed to clone vcpkg repository. Please check Git installation and network connection.
+        echo Failed to clone vcpkg repository.
         goto failure
     )
-    echo vcpkg repository cloned successfully.
 ) else (
     echo vcpkg repository found at %VCPKG_DIR%.
 )
@@ -65,32 +64,23 @@ if not exist "%VCPKG_DIR%\vcpkg.exe" (
         echo Failed to bootstrap vcpkg.
         goto failure
     )
-    echo vcpkg bootstrapped successfully.
 ) else (
     echo vcpkg.exe found.
 )
 
-echo Installing dependencies with static triplet...
-pushd "%VCPKG_DIR%"
-vcpkg install --triplet %VCPKG_TARGET_TRIPLET%
+echo.
+echo === Installing dependencies for x64-windows-static ===
+"%VCPKG_DIR%\vcpkg.exe" install --triplet x64-windows-static
 if errorlevel 1 (
-    echo Failed to install dependencies with vcpkg.
+    echo Failed to install x64 dependencies with vcpkg.
     goto failure
 )
-popd
 
-echo Configuring CMake project...
-if exist "%BUILD_DIR%" (
-    echo Removing existing build directory for clean configuration...
-    rmdir /s /q "%BUILD_DIR%"
-    if errorlevel 1 (
-        echo Failed to remove existing build directory. Please close any programs using files within it.
-        goto failure
-    )
-)
-cmake -S . -B "%BUILD_DIR%" -G %CMAKE_GENERATOR% -A %CMAKE_PLATFORM% -DRESHADE_SDK_PATH="%RESHADE_SDK_INCLUDE_PATH%" -DCMAKE_TOOLCHAIN_FILE="%VCPKG_TOOLCHAIN_FILE%" -DVCPKG_TARGET_TRIPLET=%VCPKG_TARGET_TRIPLET%
+echo.
+echo === Installing dependencies for x86-windows-static ===
+"%VCPKG_DIR%\vcpkg.exe" install --triplet x86-windows-static
 if errorlevel 1 (
-    echo CMake configuration failed!
+    echo Failed to install x86 dependencies with vcpkg.
     goto failure
 )
 
@@ -107,34 +97,30 @@ if exist "%IMGUIDIR%\.git" (
 )
 
 REM --- Ensure ImGui is present in ReShade deps ---
-set IMGUI_DIR=%RESHADE_DIR%\deps\imgui
-set IMGUI_HEADER=%IMGUI_DIR%\imgui.h
-
+set IMGUI_HEADER=%IMGUIDIR%\imgui.h
 if not exist "%IMGUI_HEADER%" (
-    echo ImGui not found in %IMGUI_DIR%. Cloning from official repository...
-    if exist "%IMGUI_DIR%" (
-        echo ImGui directory exists but imgui.h is missing. Removing directory...
-        rmdir /s /q "%IMGUI_DIR%"
-    )
-    git clone --branch v1.90.4 --depth 1 https://github.com/ocornut/imgui.git "%IMGUI_DIR%"
+    echo ImGui not found in %IMGUIDIR%. Cloning from official repository...
+    if exist "%IMGUIDIR%" rmdir /s /q "%IMGUIDIR%"
+    git clone --branch v1.90.4 --depth 1 https://github.com/ocornut/imgui.git "%IMGUIDIR%"
     if errorlevel 1 (
-        echo Failed to clone ImGui repository. Please check Git installation and network connection.
+        echo Failed to clone ImGui repository.
         goto failure
     )
-    echo ImGui cloned successfully.
 ) else (
     echo ImGui found at %IMGUI_HEADER%.
 )
 
 echo.
 echo --- Preparation Successful ---
-echo Project is ready to be built (e.g., using simple_build.bat or opening build/Listeningway.sln).
+echo Run build.bat to produce both x64 and x86 addons.
 goto end
 
 :failure
 echo.
 echo --- Preparation Failed ---
+endlocal
+exit /b 1
 
 :end
 endlocal
-pause
+exit /b 0

@@ -5,6 +5,31 @@ All notable changes to Listeningway will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **32-bit (x86) build target.** Releases now ship two ZIPs per version:
+  `Listeningway-x64-<ver>.zip` (FFXIV, modern AAA) and
+  `Listeningway-x86-<ver>.zip` (Dead Cells, FFX HD, Skyrim LE, older
+  indies/JRPGs). Same source tree, same feature set, same shader
+  contract — only the `.addon` binary differs in architecture. Based
+  on the port by [@slendereater-sketch](https://github.com/slendereater-sketch)
+  (Dru Mitchell-Gary Doney-Jones); thanks to SmilingGerm for
+  surfacing the demand in the r/vjing and r/deadcells communities.
+
+### Changed
+
+- `prepare.bat` now installs both `x64-windows-static` and
+  `x86-windows-static` vcpkg triplets and configures `build-x64/`
+  and `build-x86/` in one pass. First run is ~2× longer; subsequent
+  runs hit the vcpkg binary cache.
+- `build.bat` builds both architectures sequentially and emits
+  `dist/Listeningway-x64.addon` + `dist/Listeningway-x86.addon`.
+- `deploy.bat` defaults to deploying the x64 addon (matches the
+  typical FFXIV workflow). Set `LISTENINGWAY_DEPLOY_ARCH=x86` to
+  deploy the 32-bit binary instead.
+
 ## [2.0.1] - 2026-05-03
 
 Consolidates the work shipped under the v2.0.0 beta line into a

@@ -5,6 +5,15 @@ echo --- Listeningway Deployment Script ---
 
 REM Source dir is always `dist/` next to this script.
 set "SOURCE_DIR=%~dp0dist"
+
+REM Pick which arch to deploy. Defaults to x64 (matches the typical FFXIV
+REM workflow). Override with LISTENINGWAY_DEPLOY_ARCH=x86 if you maintain
+REM a 32-bit ReShade test rig (Dead Cells, FFX HD, Skyrim LE, ...).
+if not defined LISTENINGWAY_DEPLOY_ARCH (
+    set "LISTENINGWAY_DEPLOY_ARCH=x64"
+)
+set "ARCH_TAG=%LISTENINGWAY_DEPLOY_ARCH%"
+set "ADDON_SOURCE=Listeningway-%ARCH_TAG%.addon"
 set "ADDON_FILE=Listeningway.addon"
 
 REM Target dir is read from LISTENINGWAY_DEPLOY_DIR. This is typically a game
@@ -18,8 +27,8 @@ if not defined LISTENINGWAY_DEPLOY_DIR (
 )
 set "TARGET_DIR=%LISTENINGWAY_DEPLOY_DIR%"
 
-if not exist "%SOURCE_DIR%\%ADDON_FILE%" (
-    echo ERROR: Source file %SOURCE_DIR%\%ADDON_FILE% not found.
+if not exist "%SOURCE_DIR%\%ADDON_SOURCE%" (
+    echo ERROR: Source file %SOURCE_DIR%\%ADDON_SOURCE% not found.
     echo Make sure you've built the project successfully before running this script.
     endlocal
     exit /b 1
@@ -44,10 +53,10 @@ if not exist "%SHADER_DIR%" (
     )
 )
 
-echo Copying %ADDON_FILE% to %TARGET_DIR%...
-copy /Y "%SOURCE_DIR%\%ADDON_FILE%" "%TARGET_DIR%\" >nul
+echo Copying %ADDON_SOURCE% (%ARCH_TAG%) to %TARGET_DIR%\%ADDON_FILE%...
+copy /Y "%SOURCE_DIR%\%ADDON_SOURCE%" "%TARGET_DIR%\%ADDON_FILE%" >nul
 if !errorlevel! neq 0 (
-    echo WARNING: Failed to copy %ADDON_FILE%.
+    echo WARNING: Failed to copy %ADDON_SOURCE%.
 )
 
 if exist "%SOURCE_DIR%\Listeningway.fx" (
@@ -58,7 +67,7 @@ if exist "%SOURCE_DIR%\ListeningwayUniforms.fxh" (
 )
 
 echo.
-echo Listeningway successfully deployed to:
+echo Listeningway (%ARCH_TAG%) successfully deployed to:
 echo %TARGET_DIR%\%ADDON_FILE%
 echo.
 echo --- Deployment Complete ---

@@ -1,5 +1,7 @@
 /.vs
 /build
+/build-x64
+/build-x86
 /tools
 /deps
 /vcpkg_installed
