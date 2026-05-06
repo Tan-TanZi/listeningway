@@ -3,14 +3,14 @@ cd /d %~dp0 REM Change directory to the script's location
 setlocal
 
 REM ============================================================
-REM  prepare.bat — once-per-machine bootstrap.
+REM  prepare.bat: once-per-machine bootstrap.
 REM  Clones reshade + vcpkg, bootstraps vcpkg, and installs the
 REM  dependency set for BOTH x64-windows-static and x86-windows-static
 REM  triplets (used by build.bat to produce dual-arch addons).
 REM
 REM  Build directories (build-x64/, build-x86/) are CMake-generated
-REM  artefacts — build.bat creates them on demand. Delete them any
-REM  time; build.bat will reconfigure cleanly.
+REM  artefacts; build.bat creates them on demand. Delete them any
+REM  time and build.bat will reconfigure cleanly.
 REM ============================================================
 
 set TOOLS_DIR=tools

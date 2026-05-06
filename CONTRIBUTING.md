@@ -54,7 +54,7 @@ prepare.bat   # one-time bootstrap: clones ReShade SDK + vcpkg, installs deps fo
 build.bat     # builds both arches Release, emits dist/Listeningway-{x64,x86}.addon, deploys x64
 ```
 
-`prepare.bat` is idempotent — re-run it any time to refresh deps. `build.bat` auto-configures `build-x64/` and `build-x86/` on demand if their `CMakeCache.txt` is missing, so deleting either build directory triggers a clean reconfigure on the next build.
+`prepare.bat` is idempotent. Re-run it any time to refresh deps. `build.bat` auto-configures `build-x64/` and `build-x86/` on demand if their `CMakeCache.txt` is missing, so deleting either build directory triggers a clean reconfigure on the next build.
 
 Set `LISTENINGWAY_DEPLOY_DIR=...` to retarget the auto-deploy step (defaults to the FFXIV path). Set `LISTENINGWAY_DEPLOY_ARCH=x86` to deploy the 32-bit binary instead of the default x64.
 
@@ -67,14 +67,14 @@ cmake -S . -B build-x64 -G "Visual Studio 17 2022" -A x64 ^
       -DVCPKG_TARGET_TRIPLET=x64-windows-static
 cmake --build build-x64 --config Release
 
-:: x86 (for older / 32-bit ReShade hosts — Dead Cells, Skyrim LE, FFX HD, ...)
+:: x86 (for older / 32-bit ReShade hosts: Dead Cells, Skyrim LE, FFX HD, ...)
 cmake -S . -B build-x86 -G "Visual Studio 17 2022" -A Win32 ^
       -DCMAKE_TOOLCHAIN_FILE=tools/vcpkg/scripts/buildsystems/vcpkg.cmake ^
       -DVCPKG_TARGET_TRIPLET=x86-windows-static
 cmake --build build-x86 --config Release
 ```
 
-Tests (x64; the test target is single-arch — same source compiles either way):
+Tests (x64; the test target is single-arch, the same source compiles either way):
 
 ```
 cmake -S . -B build-x64 -DLISTENINGWAY_BUILD_TESTS=ON ...

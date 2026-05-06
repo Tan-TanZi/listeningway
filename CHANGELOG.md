@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **32-bit (x86) build target.** Releases now ship two ZIPs per version:
-  `Listeningway-x64-<ver>.zip` (FFXIV, modern AAA) and
+- **32-bit (x86) build target.** Releases now ship two ZIPs per
+  version: `Listeningway-x64-<ver>.zip` (FFXIV, modern AAA) and
   `Listeningway-x86-<ver>.zip` (Dead Cells, FFX HD, Skyrim LE, older
-  indies/JRPGs). Same source tree, same feature set, same shader
-  contract — only the `.addon` binary differs in architecture. Based
-  on the port by [@slendereater-sketch](https://github.com/slendereater-sketch)
-  (Dru Mitchell-Gary Doney-Jones); thanks to SmilingGerm for
-  surfacing the demand in the r/vjing and r/deadcells communities.
+  indies/JRPGs). Same source and feature set as x64; only the
+  `.addon` binary differs in architecture. Based on the port by
+  [@slendereater-sketch](https://github.com/slendereater-sketch)
+  (Dru Mitchell-Gary Doney-Jones), after SmilingGerm asked for it on
+  r/vjing and r/deadcells.
 
 ### Changed
 

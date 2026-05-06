@@ -53,7 +53,7 @@ jobs:
           for ARCH in x64 x86; do
             ADDON_SOURCE="Listeningway-${ARCH}.addon"
             if [ ! -f "$ADDON_SOURCE" ]; then
-              echo "Missing $ADDON_SOURCE in dist/ — did you run build.bat before pushing?"
+              echo "Missing $ADDON_SOURCE in dist/. Did you run build.bat before pushing?"
               exit 1
             fi
             STAGE="stage-${ARCH}"

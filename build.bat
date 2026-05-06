@@ -2,7 +2,7 @@
 setlocal
 
 REM ============================================================
-REM  build.bat — produces dual-arch (x64 + x86) Listeningway addons.
+REM  build.bat: produces dual-arch (x64 + x86) Listeningway addons.
 REM
 REM  Configures build-x64/ and build-x86/ on demand (CMake-generated,
 REM  fully regeneratable). Delete them any time to force a clean
