@@ -15,27 +15,23 @@ jobs:
         with:
           submodules: false
 
-      # 关键修复：使用 actions/checkout 拉取 ReShade SDK，避免认证问题
+      # 修正：使用全小写 reshade/reshade，并使用 fetch-depth
       - name: Checkout ReShade SDK
         uses: actions/checkout@v4
         with:
           repository: reshade/reshade
           path: third_party/reshade
           ref: main
-          depth: 1
+          fetch-depth: 1
 
-      # 运行原项目的环境准备脚本（它会安装 vcpkg 等依赖）
-      # 由于 third_party/reshade 已存在，脚本会跳过下载 ReShade
       - name: Prepare environment (prepare.bat)
         run: .\prepare.bat
         shell: cmd
 
-      # 构建插件
       - name: Build addon (build.bat)
         run: .\build.bat
         shell: cmd
 
-      # 上传产物
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
