@@ -9,25 +9,24 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: 检出代码（递归拉取子模块）
+      - name: 检出代码（不递归拉取子模块）
         uses: actions/checkout@v4
-        with:
-          submodules: recursive  # 关键：拉取 vcpkg 等子模块依赖
+        # 移除 submodules: recursive，避开 vcpkg 子模块报错
 
       - name: 配置MSVC编译环境
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: 安装依赖（运行prepare.bat下载ReShade SDK）
+      - name: 运行prepare.bat自动下载vcpkg、ReShade SDK依赖
         run: |
           .\prepare.bat
         shell: cmd
 
-      - name: 运行编译脚本生成插件
+      - name: 运行build.bat编译生成.addon64
         run: |
           .\build.bat
         shell: cmd
 
-      - name: 上传编译好的插件文件
+      - name: 上传编译产物
         uses: actions/upload-artifact@v4
         with:
           name: Listeningway-插件
