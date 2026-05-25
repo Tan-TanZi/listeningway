@@ -17,7 +17,7 @@ namespace lw::dsp {
 
 class FluxStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "flux"; }
+    std::string_view name() const override { return "频谱通量"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::Magnitudes, FieldId::Format};
         return r;
