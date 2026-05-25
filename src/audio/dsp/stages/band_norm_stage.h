@@ -16,7 +16,7 @@ namespace lw::dsp {
 
 class BandNormStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "band_norm"; }
+    std::string_view name() const override { return "频段归一化"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::Bands, FieldId::Format};
         return r;
