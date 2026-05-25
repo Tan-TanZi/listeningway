@@ -1,3 +1,5 @@
+基于https://github.com/gposingway/listeningway 的中文界面实现
+
 <div align="center">
 
 # Listeningway
