@@ -1,46 +1,38 @@
-name: BuildReShadeAddon
-on:
-  workflow_dispatch:
+name: BuildListeningwayAddon
 
-permissions:
-  contents: write
+on:
+  # 当代码推送到 main 或 master 分支时触发
+  push:
+    branches: [ "main", "master" ]
+  # 允许在 GitHub 网页上手动运行
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-      - name: 检出代码
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: 配置VS2022 MSVC + Windows 11 SDK 环境（和本地完全一致）
-        uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: amd64
-          winsdk: 22621  # 锁定Windows 11 SDK，对齐本地VS2022
-          toolset: 143    # VS2022 MSVC版本
+          submodules: 'recursive'
 
-      - name: 强制设置编译环境变量（C++17）
-        run: |
-          echo "CXXFLAGS=/std:c++17" >> %GITHUB_ENV%
-          echo "CFLAGS=/std:c17" >> %GITHUB_ENV%
+      # 项目依赖 Visual Studio 2022 构建工具和 CMake
+      # GitHub 的 windows-latest 运行环境已预装这些工具，无需额外安装
+
+      - name: Prepare environment (prepare.bat)
+        # 此脚本会克隆并配置 ReShade SDK 和 vcpkg 等依赖[reference:3]
+        run: .\prepare.bat
         shell: cmd
 
-      - name: 运行prepare.bat下载全部依赖（含ImGui Docking）
-        run: |
-          .\prepare.bat
+      - name: Build the addon (build.bat)
+        # 此脚本会生成 x64 和 x86 架构的 .addon 文件[reference:4][reference:5]
+        run: .\build.bat
         shell: cmd
 
-      - name: 运行build.bat编译（和本地编译逻辑完全一致）
-        run: |
-          .\build.bat
-        shell: cmd
-
-      - name: 上传编译产物
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Listeningway-插件
-          path: |
-            dist/*.addon64
-            dist/*.addon
-            dist/*.fx
-            dist/*.fxh
+          name: Listeningway-Build
+          # dist 目录包含最终生成的 .addon、.fx 和 .fxh 文件[reference:6]
+          path: dist/
