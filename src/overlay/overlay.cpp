@@ -388,28 +388,47 @@ bool integration_row(const char* name, bool& enabled, bool& dirty,
 
 // ---- Common helpers -----------------------------------------------------
 
+// const char* state_label(State s) {
+//     switch (s) {
+//         case State::Off:      return "Off";
+//         case State::Starting: return "Starting";
+//         case State::Running:  return "Running";
+//         case State::Stopping: return "Stopping";
+//         case State::Error:    return "Error";
+//     }
+//     return "?";
+// }
 const char* state_label(State s) {
     switch (s) {
-        case State::Off:      return "Off";
-        case State::Starting: return "Starting";
-        case State::Running:  return "Running";
-        case State::Stopping: return "Stopping";
-        case State::Error:    return "Error";
+        case State::Off:      return "关闭";
+        case State::Starting: return "正在启动";
+        case State::Running:  return "运行中";
+        case State::Stopping: return "正在停止";
+        case State::Error:    return "错误";
     }
     return "?";
 }
 
+// const char* format_label(int channels) {
+//     switch (channels) {
+//         case 0:  return "None";
+//         case 1:  return "Mono";
+//         case 2:  return "Stereo";
+//         case 6:  return "5.1";
+//         case 8:  return "7.1";
+//         default: return "Multi";
+//     }
+// }
 const char* format_label(int channels) {
     switch (channels) {
         case 0:  return "None";
-        case 1:  return "Mono";
-        case 2:  return "Stereo";
-        case 6:  return "5.1";
-        case 8:  return "7.1";
-        default: return "Multi";
+        case 1:  return "单声道";
+        case 2:  return "立体声";
+        case 6:  return "5.1声道";
+        case 8:  return "7.1声道";
+        default: return "多声道";
     }
 }
-
 // Per-band peak hold buffer for the spectrum visualization. Sized for the
 // max possible band count; only the first N entries are used at any time.
 // Decays toward each frame's live amplitude so the user sees recent peaks
@@ -653,7 +672,7 @@ const char* current_source_label(AudioSystem& system, const config::Settings& cf
 static void section_audio_source(AudioSystem& system, config::Settings& cfg, bool&) {
     ImGui::Spacing();
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Audio Source");
+    ImGui::TextUnformatted("音频源");
     ImGui::SameLine();
 
     const auto sources = system.available_sources();
@@ -673,10 +692,14 @@ static void section_audio_source(AudioSystem& system, config::Settings& cfg, boo
         system.switch_source(sources[sel].code);
     }
     ImGui::PopItemWidth();
-    tip("Where Listeningway listens.\n"
-        "  - System Audio: everything the speakers play.\n"
-        "  - Game Audio Only: just this game (Win10 22H2+).\n"
-        "  - None: turn analysis off.");
+    // tip("Where Listeningway listens.\n"
+    //     "  - System Audio: everything the speakers play.\n"
+    //     "  - Game Audio Only: just this game (Win10 22H2+).\n"
+    //     "  - None: turn analysis off.");
+    tip("设置 Listeningway 的音频捕获源。\n"
+    "  - 系统音频：捕获扬声器播放的所有声音。\n"
+    "  - 仅游戏音频：只捕获当前游戏声音（需 Win10 22H2 及以上）。\n"
+    "  - None无：关闭音频分析功能。");
 
     ImGui::Separator();
 }
@@ -686,7 +709,7 @@ static void section_audio_source(AudioSystem& system, config::Settings& cfg, boo
 static void section_levels(const AudioSnapshot& snap, config::Settings& cfg, bool& dirty) {
     using namespace overlay_style;
     const char* fmt_label = format_label(static_cast<int>(snap.audio_format));
-    const bool show = section_header_with_settings("Levels", fmt_label, "levels");
+    const bool show = section_header_with_settings("音量电平", fmt_label, "levels");
 
     const float vol_amp = cfg.frequency.amplifier_volume;
     const ImU32 fill = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
@@ -696,7 +719,7 @@ static void section_levels(const AudioSnapshot& snap, config::Settings& cfg, boo
         meter_row("Volume", std::clamp(snap.volume * vol_amp, 0.0f, 1.0f), fill);
     }
 
-    subgroup_label("Stereo:");
+    subgroup_label("立体声:");
     ImGui::Indent(kSubGroupIndent);
     {
         TightRowSpacing tight;
@@ -710,13 +733,13 @@ static void section_levels(const AudioSnapshot& snap, config::Settings& cfg, boo
         ImGui::Indent(kSubGroupIndent);
         if (slider_row("Volume Boost", &cfg.frequency.amplifier_volume, 1.0f, 11.0f, "%.2f"))
             dirty = true;
-        tip("Visual-only multiplier on the volume readouts and the listeningway_volume uniform. Doesn't change beat detection or analysis.\nTechnical: frequency.amplifier_volume, [1, 11]");
+        tip("仅对音量显示数值与 listeningway_volume 着色器变量生效的视觉倍率。\n不影响节拍检测与音频分析。\n技术参数：frequency.amplifier_volume，取值范围 [1, 11]");
         if (slider_row("Pan Smoothing", &cfg.audio.pan_smoothing, 0.0f, 1.0f, "%.2f"))
             dirty = true;
-        tip("Smooths out pan jitter. 0 = instant response, 1 = very slow.\nTechnical: audio.pan_smoothing, [0, 1]");
+        tip("平滑声像抖动。0 = 瞬时响应，1 = 极慢响应。\n技术参数：audio.pan_smoothing，取值范围 [0, 1]");
         if (slider_row("Pan Offset", &cfg.audio.pan_offset, -1.0f, 1.0f, "%.2f"))
             dirty = true;
-        tip("Shifts the perceived stereo center. Useful if your room/headphones are biased.\nTechnical: audio.pan_offset, [-1, +1]");
+        tip("调整立体声感知中心。适用于房间声场或耳机声道偏移时。\n技术参数：audio.pan_offset，取值范围 [-1, +1]");
         ImGui::Unindent(kSubGroupIndent);
     }
 }
@@ -778,10 +801,14 @@ static void section_beat(const AudioSnapshot& snap, config::Settings& cfg, bool&
             cfg.beat.mode = static_cast<BMode>(new_mode_idx);
             dirty = true;
         }
-        tip("How beat detection picks its sensitivity:\n"
-            "  • Auto — observes the audio and tunes itself (takes a few seconds)\n"
-            "  • Profile — pick a preset by signal character\n"
-            "  • Custom — drive the Pulse Strength slider yourself");
+        // tip("How beat detection picks its sensitivity:\n"
+        //     "  • Auto — observes the audio and tunes itself (takes a few seconds)\n"
+        //     "  • Profile — pick a preset by signal character\n"
+        //     "  • Custom — drive the Pulse Strength slider yourself");
+        tip("节拍检测灵敏度调节方式：\n"
+            "  • 自动 — 监听音频并自动校准（需等待数秒）\n"
+            "  • 配置文件 — 根据音频信号特征选择预设方案\n"
+            "  • 自定义 — 手动调节脉冲强度滑块");
 
         if (cfg.beat.mode == BMode::Auto) {
             label_left("Status");
@@ -799,18 +826,27 @@ static void section_beat(const AudioSnapshot& snap, config::Settings& cfg, bool&
                 cfg.beat.profile = static_cast<BProf>(new_prof_idx);
                 dirty = true;
             }
-            tip("Pre-cooked sensitivity, per-band weighting, and decay time tuned for one signal character.\n"
-                "  • Percussive — drums, EDM, hip-hop. Bass-driven, tight pulse.\n"
-                "  • Melodic — vocal, rock, jazz, classical. Balanced bands.\n"
-                "  • Sustained — ambient, cinematic, sparse. Sensitive across bands, longer decay.\n"
-                "Names describe the signal, not the genre.");
+            // tip("Pre-cooked sensitivity, per-band weighting, and decay time tuned for one signal character.\n"
+            //     "  • Percussive — drums, EDM, hip-hop. Bass-driven, tight pulse.\n"
+            //     "  • Melodic — vocal, rock, jazz, classical. Balanced bands.\n"
+            //     "  • Sustained — ambient, cinematic, sparse. Sensitive across bands, longer decay.\n"
+            //     "Names describe the signal, not the genre.");
+            tip("预配置灵敏度、频段权重和衰减时间，针对单一音频信号特征优化调校。\n"
+                "  • 打击型 — 鼓点、电子舞曲、嘻哈。低音驱动，节奏紧凑。\n"
+                "  • 旋律型 — 人声、摇滚、爵士、古典。频段均衡。\n"
+                "  • 持续型 — 氛围乐、影视原声、极简乐。全频段灵敏，衰减更长。\n"
+                "注：名称描述音频信号特征，而非音乐流派。");
         } else {  // Custom
             if (slider_row("Pulse Strength", &cfg.beat.pulse_strength, 0.0f, 3.0f, "%.2f"))
                 dirty = true;
-            tip("How reactive the Pulse meter (and the listeningway_beat shader uniform) is.\n"
-                "  • 0.0 — off; no triggers\n"
-                "  • 1.0 — balanced default\n"
-                "  • 2-3 — more reactive; useful for sparse / quiet content");
+            // tip("How reactive the Pulse meter (and the listeningway_beat shader uniform) is.\n"
+            //     "  • 0.0 — off; no triggers\n"
+            //     "  • 1.0 — balanced default\n"
+            //     "  • 2-3 — more reactive; useful for sparse / quiet content");
+            tip("脉冲表（及 listeningway_beat 着色器变量）的响应灵敏度。\n"
+                "  • 0.0 — 关闭；无触发\n"
+                "  • 1.0 — 均衡默认值\n"
+                "  • 2-3 — 更高灵敏度；适用于极简/安静的音频内容");
         }
 
         ImGui::Unindent(kSubGroupIndent);
@@ -914,10 +950,12 @@ static void section_spectrum(const AudioSnapshot& snap, config::Settings& cfg, b
         ImGui::Indent(kSubGroupIndent);
         if (slider_row("Bands Boost", &cfg.frequency.amplifier_bands, 1.0f, 11.0f, "%.2f"))
             dirty = true;
-        tip("Visual-only multiplier on the spectrum readouts and the listeningway_freqbands uniform.\nTechnical: frequency.amplifier_bands, [1, 11]");
+        // tip("Visual-only multiplier on the spectrum readouts and the listeningway_freqbands uniform.\nTechnical: frequency.amplifier_bands, [1, 11]");
+        tip("仅对频谱显示数值与 listeningway_freqbands 着色器变量生效的视觉倍率。\n技术参数：frequency.amplifier_bands，取值范围 [1, 11]");
         if (slider_row("Bass detail", &cfg.frequency.log_strength, 0.01f, 1.5f, "%.2f"))
             dirty = true;
-        tip("Higher = more visible detail in the bass bands; lower = flatter spectrum.\nTechnical: frequency.log_strength, [0.01, 1.5]");
+        // tip("Higher = more visible detail in the bass bands; lower = flatter spectrum.\nTechnical: frequency.log_strength, [0.01, 1.5]");
+        tip("数值越高 = 低频段细节越清晰；数值越低 = 频谱曲线越平缓。\n技术参数：frequency.log_strength，取值范围 [0.01, 1.5]");
 
         subgroup_label("Equalizer (5-band):");
         ImGui::Indent(kSubGroupIndent);
@@ -928,7 +966,8 @@ static void section_spectrum(const AudioSnapshot& snap, config::Settings& cfg, b
         }
         if (slider_row("Equalizer width", &cfg.frequency.equalizer_width, 0.05f, 0.5f, "%.2f"))
             dirty = true;
-        tip("Width of each EQ knob's influence (Gaussian σ).\nTechnical: frequency.equalizer_width");
+        // tip("Width of each EQ knob's influence (Gaussian σ).\nTechnical: frequency.equalizer_width");
+        tip("每个均衡器调节点的影响范围（高斯标准差σ）。\n技术参数：frequency.equalizer_width");
         ImGui::Unindent(kSubGroupIndent);
 
         subgroup_label("Advanced:");
@@ -940,23 +979,29 @@ static void section_spectrum(const AudioSnapshot& snap, config::Settings& cfg, b
                 static_cast<config::FrequencyConfig::BandScale>(scale);
             dirty = true;
         }
-        tip("How frequencies map onto the bands.\n  • Mel: matches human pitch perception.\n  • Log: v1 default.\n  • Linear: legacy.\nTechnical: frequency.band_scale");
+        // tip("How frequencies map onto the bands.\n  • Mel: matches human pitch perception.\n  • Log: v1 default.\n  • Linear: legacy.\nTechnical: frequency.band_scale");
+        tip("频率映射至频段的方式。\n  • 梅尔刻度：匹配人耳音高感知。\n  • 对数刻度：v1 版本默认值。\n  • 线性刻度：旧版模式。\n技术参数：frequency.band_scale");
 
         if (slider_int_row("Band count", &cfg.frequency.band_count, 8, 128))
             dirty = true;
-        tip("Number of frequency bands published. Must match shader array size.\nTechnical: frequency.band_count, [8, 128]");
+        // tip("Number of frequency bands published. Must match shader array size.\nTechnical: frequency.band_count, [8, 128]");
+        tip("输出的频段数量。必须与着色器数组大小保持一致。\n技术参数：frequency.band_count，取值范围 [8, 128]");
         if (slider_int_row("Analysis resolution (FFT)", &cfg.frequency.fft_size, 256, 8192))
             dirty = true;
-        tip("FFT window size. Higher = more frequency detail, more CPU. Power-of-two recommended.\nTechnical: frequency.fft_size");
+        // tip("FFT window size. Higher = more frequency detail, more CPU. Power-of-two recommended.\nTechnical: frequency.fft_size");
+        tip("FFT窗口大小。数值越高 = 频率细节越丰富，CPU占用越高。推荐使用2的幂数值。\n技术参数：frequency.fft_size");
         if (slider_row("Low cutoff (Hz)", &cfg.frequency.min_freq, 10.0f, 500.0f, "%.0f"))
             dirty = true;
-        tip("Lowest frequency included.\nTechnical: frequency.min_freq, Hz");
+        // tip("Lowest frequency included.\nTechnical: frequency.min_freq, Hz");
+        tip("包含的最低频率。\n技术参数：frequency.min_freq，单位 赫兹(Hz)");
         if (slider_row("High cutoff (Hz)", &cfg.frequency.max_freq, 2000.0f, 22050.0f, "%.0f"))
             dirty = true;
-        tip("Highest frequency included.\nTechnical: frequency.max_freq, Hz");
+        // tip("Highest frequency included.\nTechnical: frequency.max_freq, Hz");
+        tip("包含的最高频率。\n技术参数：frequency.max_freq，单位 赫兹(Hz)");
         if (slider_row("Magnitude scaling", &cfg.frequency.band_norm, 0.001f, 1.0f, "%.3f"))
             dirty = true;
-        tip("Raw FFT magnitude → band amplitude scaling factor.\nTechnical: frequency.band_norm");
+        // tip("Raw FFT magnitude → band amplitude scaling factor.\nTechnical: frequency.band_norm");
+        tip("原始FFT幅值 → 频段振幅缩放系数。\n技术参数：frequency.band_norm");
         ImGui::Unindent(kSubGroupIndent);
         ImGui::Unindent(kSubGroupIndent);
     }
@@ -1047,13 +1092,16 @@ static void section_spatial(const AudioSnapshot& snap, config::Settings& cfg, bo
         if (slider_row("Direction Boost", &cfg.frequency.amplifier_direction,
                         1.0f, 11.0f, "%.2f"))
             dirty = true;
-        tip("Visual-only multiplier on the directional uniforms (listeningway_front, _front_right, etc.).\nTechnical: frequency.amplifier_direction, [1, 11]");
+        // tip("Visual-only multiplier on the directional uniforms (listeningway_front, _front_right, etc.).\nTechnical: frequency.amplifier_direction, [1, 11]");
+        tip("仅对方向类着色器变量（listeningway_front、_front_right 等）生效的视觉倍率。\n技术参数：frequency.amplifier_direction，取值范围 [1, 11]");
         if (slider_row("Spread", &cfg.frequency.spatial_spread, 0.0f, 0.5f, "%.2f"))
             dirty = true;
-        tip("How much each direction's energy bleeds into its two neighbours on the rose. 0 = sharp peaks per channel; 0.5 = soft glow.\nTechnical: frequency.spatial_spread, [0, 0.5]");
+        // tip("How much each direction's energy bleeds into its two neighbours on the rose. 0 = sharp peaks per channel; 0.5 = soft glow.\nTechnical: frequency.spatial_spread, [0, 0.5]");
+        tip("各方向能量向声场玫瑰图中相邻两个方位的扩散程度。0 = 各声道峰值锐利；0.5 = 柔和光晕效果。\n技术参数：frequency.spatial_spread，取值范围 [0, 0.5]");
         if (slider_row("Smoothing", &cfg.frequency.spatial_smoothing, 0.0f, 0.95f, "%.2f"))
             dirty = true;
-        tip("Temporal smoothing on the rose. 0 = raw per-frame; higher = calmer rose, slower to react.\nTechnical: frequency.spatial_smoothing, [0, 0.95]");
+        // tip("Temporal smoothing on the rose. 0 = raw per-frame; higher = calmer rose, slower to react.\nTechnical: frequency.spatial_smoothing, [0, 0.95]");
+        tip("声场玫瑰图的时域平滑。0 = 原始逐帧数据；数值越高 = 声场玫瑰图越平稳，响应越迟缓。\n技术参数：frequency.spatial_smoothing，取值范围 [0, 0.95]");
         ImGui::Unindent(kSubGroupIndent);
     }
 }
@@ -1109,36 +1157,44 @@ static void section_advanced(const AudioSnapshot& snap, config::Settings& cfg, b
         ImGui::Indent(kSubGroupIndent);
         if (slider_row("Volume rate", &cfg.chronotensity.gain_volume, 0.0f, 5.0f, "%.2f"))
             dirty = true;
-        tip("How fast the volume-driven phase advances per unit of auto-leveled volume.\nTechnical: chronotensity.gain_volume");
+        // tip("How fast the volume-driven phase advances per unit of auto-leveled volume.\nTechnical: chronotensity.gain_volume");
+        tip("音量驱动相位随自动均衡音量单位的推进速度。\n技术参数：chronotensity.gain_volume");
         if (slider_row("Bass rate", &cfg.chronotensity.gain_bass, 0.0f, 5.0f, "%.2f"))
             dirty = true;
-        tip("Rate for the bass-driven phase.\nTechnical: chronotensity.gain_bass");
+        // tip("Rate for the bass-driven phase.\nTechnical: chronotensity.gain_bass");
+        tip("低音驱动相位的速率。\n技术参数：chronotensity.gain_bass");
         if (slider_row("Treble rate", &cfg.chronotensity.gain_treble, 0.0f, 5.0f, "%.2f"))
             dirty = true;
-        tip("Rate for the treble-driven phase.\nTechnical: chronotensity.gain_treble");
+        // tip("Rate for the treble-driven phase.\nTechnical: chronotensity.gain_treble");
+        tip("高音驱动相位的速率。\n技术参数：chronotensity.gain_treble");
         ImGui::Unindent(kSubGroupIndent);
 
         subgroup_label("Auto-leveling (AGC):");
         ImGui::Indent(kSubGroupIndent);
         if (slider_row("Window (s)", &cfg.agc.window_seconds, 0.5f, 30.0f, "%.1f"))
             dirty = true;
-        tip("Running-mean window for auto-leveling.\nTechnical: agc.window_seconds");
+        // tip("Running-mean window for auto-leveling.\nTechnical: agc.window_seconds");
+        tip("自动均衡的滑动平均窗口时长。\n技术参数：agc.window_seconds");
         if (slider_row("Clamp max", &cfg.agc.clamp_max, 1.5f, 8.0f, "%.1f"))
             dirty = true;
-        tip("Upper bound on the auto-leveled value.\nTechnical: agc.clamp_max");
+        // tip("Upper bound on the auto-leveled value.\nTechnical: agc.clamp_max");
+        tip("自动均衡数值的上限。\n技术参数：agc.clamp_max");
         if (slider_row("Smoothing attack (ms)", &cfg.agc.att_attack_ms, 1.0f, 1000.0f, "%.0f"))
             dirty = true;
-        tip("How fast the smoothed (_att) sibling rises.\nTechnical: agc.att_attack_ms");
+        // tip("How fast the smoothed (_att) sibling rises.\nTechnical: agc.att_attack_ms");
+        tip("平滑处理后数值的上升速度。\n技术参数：agc.att_attack_ms");
         if (slider_row("Smoothing release (ms)", &cfg.agc.att_release_ms, 1.0f, 5000.0f, "%.0f"))
             dirty = true;
-        tip("How fast the smoothed sibling falls.\nTechnical: agc.att_release_ms");
+        // tip("How fast the smoothed sibling falls.\nTechnical: agc.att_release_ms");
+        tip("平滑处理后数值的下降速度。\n技术参数：agc.att_release_ms");
         ImGui::Unindent(kSubGroupIndent);
-
+        
         subgroup_label("Loudness:");
         ImGui::Indent(kSubGroupIndent);
         if (slider_row("Window (ms)", &cfg.loudness.window_ms, 50.0f, 3000.0f, "%.0f"))
             dirty = true;
-        tip("K-weighted RMS window. 400 ms = BS.1770 'momentary' loudness.\nTechnical: loudness.window_ms");
+        // tip("K-weighted RMS window. 400 ms = BS.1770 'momentary' loudness.\nTechnical: loudness.window_ms");
+        tip("K加权均方根窗口。400毫秒 = BS.1770标准「瞬时」响度。\n技术参数：loudness.window_ms");
         ImGui::Unindent(kSubGroupIndent);
         ImGui::Unindent(kSubGroupIndent);
     }
@@ -1205,7 +1261,8 @@ bool host_port_rows(const char* prefix, std::string& host, int& port,
         changed = true;
     }
     ImGui::PopItemWidth();
-    tip("Destination address. 127.0.0.1 = this machine. Anything else sends data over the network.");
+    // tip("Destination address. 127.0.0.1 = this machine. Anything else sends data over the network.");
+    tip("目标地址。127.0.0.1 = 本机。填写其他地址则通过网络发送数据。");
 
     label_left("Port");
     char id2[40]; std::snprintf(id2, sizeof(id2), "##port_%s", prefix);
@@ -1249,12 +1306,14 @@ void section_integrations(config::Settings& cfg, bool& dirty,
                 cfg.network.osc.rate_hz = std::clamp(cfg.network.osc.rate_hz, 1, 120);
                 dirty = true;
             }
-            tip("How often to send each OSC message per second. Default 60.\nTechnical: network.osc.rate_hz, [1, 120]");
+            // tip("How often to send each OSC message per second. Default 60.\nTechnical: network.osc.rate_hz, [1, 120]");
+            tip("每秒发送各OSC消息的频率。默认值60。\n技术参数：network.osc.rate_hz，取值范围 [1, 120]");
             label_left("Test");
             if (ImGui::Button("Send test packet##osc", ImVec2(-1, 0))) {
                 if (auto* c = registry.find_by_id("osc")) c->send_test_packet();
             }
-            tip("Sends a single /listeningway/test message. Use samples/integration_harness.py to verify reception.");
+            // tip("Sends a single /listeningway/test message. Use samples/integration_harness.py to verify reception.");
+            tip("发送单条 /listeningway/test 消息。使用 samples/integration_harness.py 脚本验证接收状态。");
             ImGui::Unindent(kSubGroupIndent * 2.0f);
         }
     }
@@ -1293,19 +1352,34 @@ void section_integrations(config::Settings& cfg, bool& dirty,
             using LinearP = config::OpenRgbConfig::LinearPattern;
             using MatrixP = config::OpenRgbConfig::MatrixPattern;
 
+            // static const char* const kSingleNames[] = {
+            //     "Beat Flash", "Volume Pulse", "Spectral Hue",
+            //     "Chronotensity Cycle", "Static", "Off",
+            // };
+            // static const char* const kLinearNames[] = {
+            //     "Spectrum Bar", "VU Meter", "Chase / Orbit",
+            //     "Pulse from Center", "Stereo Split", "Color Wash",
+            //     "Static", "Off",
+            // };
+            // static const char* const kMatrixNames[] = {
+            //     "Spatial Map", "Equalizer Columns", "Per-Region",
+            //     "Spectrogram Waterfall", "Beat Flash", "Color Wash",
+            //     "Static", "Off",
+            // };
+
             static const char* const kSingleNames[] = {
-                "Beat Flash", "Volume Pulse", "Spectral Hue",
-                "Chronotensity Cycle", "Static", "Off",
+                "节拍闪烁", "音量脉冲", "频谱色相",
+                "时序律动循环", "静态", "关闭",
             };
             static const char* const kLinearNames[] = {
-                "Spectrum Bar", "VU Meter", "Chase / Orbit",
-                "Pulse from Center", "Stereo Split", "Color Wash",
-                "Static", "Off",
+                "频谱柱状图", "VU音量表", "追逐/环绕",
+                "中心脉冲", "立体声分离", "色彩渐变",
+                "静态", "关闭",
             };
             static const char* const kMatrixNames[] = {
-                "Spatial Map", "Equalizer Columns", "Per-Region",
-                "Spectrogram Waterfall", "Beat Flash", "Color Wash",
-                "Static", "Off",
+                "空间声场图", "均衡器柱状图", "分区域显示",
+                "频谱瀑布图", "节拍闪烁", "色彩渐变",
+                "静态", "关闭",
             };
 
             auto pattern_dropdown_row = [&](const char* type_name, int count,
@@ -1335,13 +1409,21 @@ void section_integrations(config::Settings& cfg, bool& dirty,
                 cfg.network.openrgb.pattern_single = static_cast<SingleP>(s);
                 dirty = true;
             }
-            tip("Pattern for 1-LED zones (GPU accents, AIO pumps).\n"
-                "Ordered active → soothing.\n"
-                "  • Beat Flash — pulses on each beat\n"
-                "  • Volume Pulse — brightness rises and falls\n"
-                "  • Spectral Hue — hue from spectral centroid (default)\n"
-                "  • Chronotensity Cycle — hue rotates always\n"
-                "  • Static / Off");
+            // tip("Pattern for 1-LED zones (GPU accents, AIO pumps).\n"
+            //     "Ordered active → soothing.\n"
+            //     "  • Beat Flash — pulses on each beat\n"
+            //     "  • Volume Pulse — brightness rises and falls\n"
+            //     "  • Spectral Hue — hue from spectral centroid (default)\n"
+            //     "  • Chronotensity Cycle — hue rotates always\n"
+            //     "  • Static / Off");
+
+            tip("单灯区灯光模式（GPU装饰灯、一体式水冷泵灯）。\n"
+                "按效果活跃度排序：动态 → 舒缓。\n"
+                "  • 节拍闪烁 — 随每次节拍脉冲发光\n"
+                "  • 音量脉冲 — 亮度随音量高低变化\n"
+                "  • 频谱色相 — 基于频谱质心变色（默认）\n"
+                "  • 时序循环 — 色相持续循环渐变\n"
+                "  • 静态 / 关闭");
 
             int l = static_cast<int>(cfg.network.openrgb.pattern_linear);
             if (pattern_dropdown_row("Linear", n_linear, kLinearNames,
@@ -1349,14 +1431,23 @@ void section_integrations(config::Settings& cfg, bool& dirty,
                 cfg.network.openrgb.pattern_linear = static_cast<LinearP>(l);
                 dirty = true;
             }
-            tip("Pattern for 1D-strip zones (RAM, case strips, fan rings, motherboard accents).\n"
-                "Ordered active → soothing.\n"
-                "  • Spectrum Bar — freq across length (default)\n"
-                "  • VU Meter — fills with volume, peak-hold dot\n"
-                "  • Chase / Orbit — chronotensity-driven comet\n"
-                "  • Pulse from Center — bass + beat ripples outward\n"
-                "  • Stereo Split — left half / right half by L/R volume\n"
-                "  • Color Wash / Static / Off");
+            // tip("Pattern for 1D-strip zones (RAM, case strips, fan rings, motherboard accents).\n"
+            //     "Ordered active → soothing.\n"
+            //     "  • Spectrum Bar — freq across length (default)\n"
+            //     "  • VU Meter — fills with volume, peak-hold dot\n"
+            //     "  • Chase / Orbit — chronotensity-driven comet\n"
+            //     "  • Pulse from Center — bass + beat ripples outward\n"
+            //     "  • Stereo Split — left half / right half by L/R volume\n"
+            //     "  • Color Wash / Static / Off");
+
+            tip("一维灯带区域灯光模式（内存灯条、机箱灯带、风扇灯环、主板装饰灯）。\n"
+                "按效果活跃度排序：动态 → 舒缓。\n"
+                "  • 频谱柱状图 — 长度方向显示音频频率（默认）\n"
+                "  • VU音量表 — 随音量填充，峰值保持光点\n"
+                "  • 追逐/环绕 — 时序驱动的流光效果\n"
+                "  • 中心脉冲 — 低音+节拍从中心向外扩散\n"
+                "  • 立体声分离 — 左半/右半对应左右声道音量\n"
+                "  • 色彩渐变 / 静态 / 关闭");
 
             int m = static_cast<int>(cfg.network.openrgb.pattern_matrix);
             if (pattern_dropdown_row("Matrix", n_matrix, kMatrixNames,
@@ -1364,13 +1455,21 @@ void section_integrations(config::Settings& cfg, bool& dirty,
                 cfg.network.openrgb.pattern_matrix = static_cast<MatrixP>(m);
                 dirty = true;
             }
-            tip("Pattern for 2D-grid zones (keyboards, mouse pads).\n"
-                "Ordered active → soothing.\n"
-                "  • Spatial Map — direction8 → keyboard XY\n"
-                "  • Equalizer Columns — N freq bands as vertical bars\n"
-                "  • Per-Region — bass at bottom, treble at top, beat at spacebar (default)\n"
-                "  • Spectrogram Waterfall — time scrolls down rows\n"
-                "  • Beat Flash / Color Wash / Static / Off");
+            // tip("Pattern for 2D-grid zones (keyboards, mouse pads).\n"
+            //     "Ordered active → soothing.\n"
+            //     "  • Spatial Map — direction8 → keyboard XY\n"
+            //     "  • Equalizer Columns — N freq bands as vertical bars\n"
+            //     "  • Per-Region — bass at bottom, treble at top, beat at spacebar (default)\n"
+            //     "  • Spectrogram Waterfall — time scrolls down rows\n"
+            //     "  • Beat Flash / Color Wash / Static / Off");
+
+            tip("二维网格区域灯光模式（键盘、鼠标垫）。\n"
+                "按效果活跃度排序：动态 → 舒缓。\n"
+                "  • 空间声场图 — 8方位音频 → 键盘XY坐标\n"
+                "  • 均衡器柱状图 — N个频段以垂直柱形显示\n"
+                "  • 分区域显示 — 底部为低音、顶部为高音、空格键响应节拍（默认）\n"
+                "  • 频谱瀑布图 — 时间沿行向下滚动显示\n"
+                "  • 节拍闪烁 / 色彩渐变 / 静态 / 关闭");
 
             ImGui::Spacing();
 
@@ -1378,15 +1477,18 @@ void section_integrations(config::Settings& cfg, bool& dirty,
                 cfg.network.openrgb.rate_hz = std::clamp(cfg.network.openrgb.rate_hz, 5, 60);
                 dirty = true;
             }
-            tip("Frame rate. Default 30. The OpenRGB server has known CPU issues above ~60 Hz.\nTechnical: network.openrgb.rate_hz, [5, 60]");
+            // tip("Frame rate. Default 30. The OpenRGB server has known CPU issues above ~60 Hz.\nTechnical: network.openrgb.rate_hz, [5, 60]");
+            tip("帧率。默认值30。OpenRGB服务器在刷新率高于约60赫兹时存在已知的CPU占用问题。\n技术参数：network.openrgb.rate_hz，取值范围 [5, 60]");
             if (slider_row("Brightness", &cfg.network.openrgb.brightness, 0.0f, 1.0f, "%.2f"))
                 dirty = true;
-            tip("Global multiplier on output color intensity (0..1).\nTechnical: network.openrgb.brightness");
+            // tip("Global multiplier on output color intensity (0..1).\nTechnical: network.openrgb.brightness");
+            tip("输出色彩亮度全局倍率 (0~1)。\n技术参数：network.openrgb.brightness");
             label_left("Test");
             if (ImGui::Button("Flash all LEDs##openrgb", ImVec2(-1, 0))) {
                 if (orgb) orgb->send_test_packet();
             }
-            tip("Connects briefly and flashes every LED to white for one frame. Verifies the server is reachable and devices respond.");
+            // tip("Connects briefly and flashes every LED to white for one frame. Verifies the server is reachable and devices respond.");
+            tip("短暂连接并将所有LED在一帧内闪烁为白色，用于验证服务器可连接、设备正常响应。");
             ImGui::Unindent(kSubGroupIndent * 2.0f);
         }
     }
@@ -1402,25 +1504,30 @@ static void section_settings(config::Store& store, config::Settings& cfg,
 
     ImGui::Columns(3, "##settings_buttons", false);
     if (ImGui::Button("Save", ImVec2(-1, 0))) store.save();
-    tip("Save current settings to Listeningway.json (next to the addon).");
+    // tip("Save current settings to Listeningway.json (next to the addon).");
+    tip("将当前设置保存到 Listeningway.json 文件（位于插件同级目录）。");
     ImGui::NextColumn();
     if (ImGui::Button("Load", ImVec2(-1, 0))) store.load();
-    tip("Reload Listeningway.json from disk. Discards any unsaved changes.");
+    // tip("Reload Listeningway.json from disk. Discards any unsaved changes.");
+    tip("从磁盘重新加载 Listeningway.json 文件。将丢弃所有未保存的更改。");
     ImGui::NextColumn();
     if (ImGui::Button("Reset", ImVec2(-1, 0))) {
         store.publish(config::Settings{});
         store.save();
     }
-    tip("Reset all settings to defaults and save.");
+    // tip("Reset all settings to defaults and save.");
+    tip("将所有设置重置为默认值并保存。");
     ImGui::Columns(1);
 
     if (ImGui::Button("Restart audio pipeline", ImVec2(-1, 0))) {
         system.switch_source(cfg.audio.capture_source_code);
     }
-    tip("Stop and restart the active source. Use this after changing the FFT size or band count.");
+    // tip("Stop and restart the active source. Use this after changing the FFT size or band count.");
+    tip("停止并重启当前激活的音频源。修改FFT大小或频段数量后请使用此功能。");
 
     if (ImGui::Checkbox("Debug logging", &cfg.debug.debug_logging)) dirty = true;
-    tip("Verbose log to listeningway.log next to the addon.\nTechnical: debug.debug_logging");
+    // tip("Verbose log to listeningway.log next to the addon.\nTechnical: debug.debug_logging");
+    tip("将详细日志写入插件同级目录下的 listeningway.log 文件。\n技术参数：debug.debug_logging");
 
     ImGui::TextDisabled("Config file: %s", store.path().u8string().c_str());
 }
