@@ -1,94 +1,41 @@
 name: BuildListeningwayAddon
+
 on:
   push:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
-env:
-  # 定义要使用的 ReShade SDK 版本，使用确定版本的 Tag 更稳定
-  RESHADE_TAG: "1.3.0"
-
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout main repository
         uses: actions/checkout@v4
-
-      # --- 1. 稳定的依赖安装 ---
-      - name: Setup vcpkg
-        uses: johnwason/vcpkg-action@v6
         with:
-          # 指定 x64 架构和静态链接的 triplet
-          triplet: x64-windows-static
-          # 让 action 自动处理依赖的安装和缓存
-          manifest-dir: ${{ github.workspace }}
-          # 如果你的项目根目录有 vcpkg.json，请取消注释下面这行
-          # githubToken: ${{ github.token }}
+          submodules: false
 
-      - name: Download ReShade SDK (Specific Release)
-        run: |
-          # 使用官方发布的稳定 Release 包，避免直接拉取最新的 main 分支
-          $url = "https://github.com/reshade/reshade/archive/refs/tags/${{ env.RESHADE_TAG }}.zip"
-          $zipPath = "$env:TEMP\reshade.zip"
-          $extractPath = "${{ github.workspace }}\third_party"
-          
-          Write-Host "Downloading ReShade SDK from $url"
-          # 使用 --retry 和 --retry-connrefused 让下载更健壮
-          curl.exe --retry 5 --retry-connrefused -L $url -o $zipPath
-          
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Failed to download ReShade SDK"
-            exit 1
-          }
-          
-          # 解压并重命名文件夹，确保路径正确
-          Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-          # 解压后的文件夹名可能是 "reshade-${{ env.RESHADE_TAG }}"，将其重命名为 "reshade"
-          $extractedFolder = Get-ChildItem -Path $extractPath -Directory | Where-Object { $_.Name -like "reshade-*" } | Select-Object -First 1
-          if ($extractedFolder) {
-            Move-Item -Path $extractedFolder.FullName -Destination "$extractPath\reshade" -Force
-          }
-          Write-Host "ReShade SDK ready at $extractPath\reshade"
+      # 关键修复：使用 actions/checkout 拉取 ReShade SDK，避免认证问题
+      - name: Checkout ReShade SDK
+        uses: actions/checkout@v4
+        with:
+          repository: reshade/reshade
+          path: third_party/reshade
+          ref: main
+          depth: 1
 
-      # 这里可以加上 vcpkg 的配置和安装步骤，如果项目没有 vcpkg.json，可以手动调用 vcpkg install
-      - name: Install vcpkg dependencies
-        run: |
-          # 如果你项目根目录下有 vcpkg.json，上面的 vcpkg-action 会自动处理
-          # 如果项目是手动调用 prepare.bat 来安装依赖，可以在这里调用它
-          # 但为了避免重复下载 ReShade，可以先注释掉 prepare.bat 中下载 ReShade 的部分，或者直接手动调用 vcpkg
-          # 示例：手动安装项目所需的包（请根据项目实际依赖调整）
-          # vcpkg install gtest:x64-windows-static kissfft:x64-windows-static nlohmann-json:x64-windows-static
-          
-          # 或者，如果你希望完全依赖 prepare.bat，可以在这里运行它
-          # .\prepare.bat
-          Write-Host "vcpkg dependencies installed"
+      # 运行原项目的环境准备脚本（它会安装 vcpkg 等依赖）
+      # 由于 third_party/reshade 已存在，脚本会跳过下载 ReShade
+      - name: Prepare environment (prepare.bat)
+        run: .\prepare.bat
+        shell: cmd
 
-      # --- 2. 构建步骤 ---
-      - name: Configure CMake
-        run: |
-          # 确保 CMake 能找到我们刚刚放置的 ReShade SDK
-          cmake -B build-x64 -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DRESHADE_SDK_DIR=${{ github.workspace }}/third_party/reshade -A x64
+      # 构建插件
+      - name: Build addon (build.bat)
+        run: .\build.bat
+        shell: cmd
 
-      - name: Build x64 addon
-        run: |
-          cmake --build build-x64 --config Release --target listeningway
-
-      - name: Prepare artifacts
-        run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          # 假设生成的文件名为 Listeningway-x64.addon，请根据项目实际情况调整
-          if (Test-Path "build-x64/src/Release/Listeningway-x64.addon") {
-            Copy-Item "build-x64/src/Release/Listeningway-x64.addon" -Destination "dist/" -Force
-          } else {
-            # 搜索可能存在的 .addon 文件
-            $addon = Get-ChildItem -Path build-x64 -Recurse -Filter "*.addon" | Select-Object -First 1
-            if ($addon) { Copy-Item $addon.FullName -Destination "dist/Listeningway-x64.addon" -Force }
-          }
-          # 如果项目还有其他需要打包的文件，比如 .fx 和 .fxh，可以一并复制
-          if (Test-Path "src/Listeningway.fx") { Copy-Item "src/Listeningway.fx" -Destination "dist/" -Force }
-          if (Test-Path "src/ListeningwayUniforms.fxh") { Copy-Item "src/ListeningwayUniforms.fxh" -Destination "dist/" -Force }
-
+      # 上传产物
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
