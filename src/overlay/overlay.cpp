@@ -784,8 +784,8 @@ static void section_beat(const AudioSnapshot& snap, config::Settings& cfg, bool&
     if (show) {
         ImGui::Indent(kSubGroupIndent);
 
-        static const char* const kModeOptions[]    = { "Auto", "Profile", "Custom" };
-        static const char* const kProfileOptions[] = { "Percussive", "Melodic", "Sustained" };
+        static const char* const kModeOptions[]    = { "自动", "配置文件", "自定义" };
+        static const char* const kProfileOptions[] = { "打击型", "旋律型", "持续型" };
 
         const int prev_mode_idx = static_cast<int>(cfg.beat.mode);
         const int new_mode_idx = segmented_row("Mode", kModeOptions, 3, prev_mode_idx);
@@ -1089,16 +1089,16 @@ static void section_spatial(const AudioSnapshot& snap, config::Settings& cfg, bo
 
     if (show) {
         ImGui::Indent(kSubGroupIndent);
-        if (slider_row("Direction Boost", &cfg.frequency.amplifier_direction,
+        if (slider_row("方向增强", &cfg.frequency.amplifier_direction,
                         1.0f, 11.0f, "%.2f"))
             dirty = true;
         // tip("Visual-only multiplier on the directional uniforms (listeningway_front, _front_right, etc.).\nTechnical: frequency.amplifier_direction, [1, 11]");
         tip("仅对方向类着色器变量（listeningway_front、_front_right 等）生效的视觉倍率。\n技术参数：frequency.amplifier_direction，取值范围 [1, 11]");
-        if (slider_row("Spread", &cfg.frequency.spatial_spread, 0.0f, 0.5f, "%.2f"))
+        if (slider_row("扩散", &cfg.frequency.spatial_spread, 0.0f, 0.5f, "%.2f"))
             dirty = true;
         // tip("How much each direction's energy bleeds into its two neighbours on the rose. 0 = sharp peaks per channel; 0.5 = soft glow.\nTechnical: frequency.spatial_spread, [0, 0.5]");
         tip("各方向能量向声场玫瑰图中相邻两个方位的扩散程度。0 = 各声道峰值锐利；0.5 = 柔和光晕效果。\n技术参数：frequency.spatial_spread，取值范围 [0, 0.5]");
-        if (slider_row("Smoothing", &cfg.frequency.spatial_smoothing, 0.0f, 0.95f, "%.2f"))
+        if (slider_row("平滑", &cfg.frequency.spatial_smoothing, 0.0f, 0.95f, "%.2f"))
             dirty = true;
         // tip("Temporal smoothing on the rose. 0 = raw per-frame; higher = calmer rose, slower to react.\nTechnical: frequency.spatial_smoothing, [0, 0.95]");
         tip("声场玫瑰图的时域平滑。0 = 原始逐帧数据；数值越高 = 声场玫瑰图越平稳，响应越迟缓。\n技术参数：frequency.spatial_smoothing，取值范围 [0, 0.95]");
