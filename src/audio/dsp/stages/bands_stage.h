@@ -15,7 +15,7 @@ namespace lw::dsp {
 
 class BandsStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "bands"; }
+    std::string_view name() const override { return "频段处理"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::Magnitudes, FieldId::Format};
         return r;
