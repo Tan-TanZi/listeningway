@@ -1,0 +1,33 @@
+name: BuildReShadeAddon
+
+# 核心：仅保留手动触发，无任何自动运行规则
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置MSVC编译环境
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: 运行编译脚本生成插件
+        run: |
+          .\build.bat
+        shell: cmd
+
+      - name: 上传编译好的插件文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: Listeningway-插件
+          path: |
+            dist/*.addon64
+            dist/*.addon
+            dist/*.fx
+            dist/*.fxh
