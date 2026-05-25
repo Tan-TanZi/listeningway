@@ -10,21 +10,19 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1. 检出项目代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 让 prepare.bat 安装所有依赖 (它会自动处理 vcpkg 和 ReShade SDK)
       - name: Prepare environment (prepare.bat)
         run: .\prepare.bat
         shell: cmd
 
-      # 3. 让 build.bat 进行编译
       - name: Build addon (build.bat)
-        run: .\build.bat
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+          .\build.bat
         shell: cmd
 
-      # 4. 上传编译好的插件
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
