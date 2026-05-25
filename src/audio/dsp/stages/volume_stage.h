@@ -13,7 +13,7 @@ namespace lw::dsp {
 
 class VolumeStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "volume"; }
+    std::string_view name() const override { return "音量计算"; }
 
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::Samples, FieldId::Format};
