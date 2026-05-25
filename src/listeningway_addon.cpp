@@ -23,7 +23,7 @@
 
 extern "C" __declspec(dllexport) const char *NAME = "Listeningway";
 extern "C" __declspec(dllexport) const char *DESCRIPTION =
-    "Real-time audio analysis DSP add-on for ReShade.";
+    "适用于 ReShade 的实时音频分析 DSP 附加组件，专为 Windows 平台设计，支持 x64/x86 双架构，能捕获系统或游戏音频、实时分析，并把音频数据输出给三类终端实现音画同步律动。";
 
 namespace
 {
