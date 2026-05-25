@@ -22,7 +22,7 @@ public:
     FftStage();
     ~FftStage() override;
 
-    std::string_view name() const override { return "fft"; }
+    std::string_view name() const override { return "快速傅里叶变换"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::Samples, FieldId::Format};
         return r;
