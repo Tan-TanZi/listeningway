@@ -10,28 +10,21 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout main repository
+      # 1. 检出项目代码
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: false
 
-      # 修正：使用全小写 reshade/reshade，并使用 fetch-depth
-      - name: Checkout ReShade SDK
-        uses: actions/checkout@v4
-        with:
-          repository: reshade/reshade
-          path: third_party/reshade
-          ref: main
-          fetch-depth: 1
-
+      # 2. 让 prepare.bat 安装所有依赖 (它会自动处理 vcpkg 和 ReShade SDK)
       - name: Prepare environment (prepare.bat)
         run: .\prepare.bat
         shell: cmd
 
+      # 3. 让 build.bat 进行编译
       - name: Build addon (build.bat)
         run: .\build.bat
         shell: cmd
 
+      # 4. 上传编译好的插件
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
