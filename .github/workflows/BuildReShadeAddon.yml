@@ -9,19 +9,28 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: 检出代码（不递归拉取子模块）
+      - name: 检出代码
         uses: actions/checkout@v4
-        # 移除 submodules: recursive，避开 vcpkg 子模块报错
 
-      - name: 配置MSVC编译环境
+      - name: 配置VS2022 MSVC + Windows 11 SDK 环境（和本地完全一致）
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+          winsdk: 22621  # 锁定Windows 11 SDK，对齐本地VS2022
+          toolset: 143    # VS2022 MSVC版本
 
-      - name: 运行prepare.bat自动下载vcpkg、ReShade SDK依赖
+      - name: 强制设置编译环境变量（C++17）
+        run: |
+          echo "CXXFLAGS=/std:c++17" >> %GITHUB_ENV%
+          echo "CFLAGS=/std:c17" >> %GITHUB_ENV%
+        shell: cmd
+
+      - name: 运行prepare.bat下载全部依赖（含ImGui Docking）
         run: |
           .\prepare.bat
         shell: cmd
 
-      - name: 运行build.bat编译生成.addon64
+      - name: 运行build.bat编译（和本地编译逻辑完全一致）
         run: |
           .\build.bat
         shell: cmd
