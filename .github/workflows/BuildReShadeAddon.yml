@@ -1,6 +1,4 @@
 name: BuildReShadeAddon
-
-# 核心：仅保留手动触发，无任何自动运行规则
 on:
   workflow_dispatch:
 
@@ -11,11 +9,18 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: 检出代码
+      - name: 检出代码（递归拉取子模块）
         uses: actions/checkout@v4
+        with:
+          submodules: recursive  # 关键：拉取 vcpkg 等子模块依赖
 
       - name: 配置MSVC编译环境
         uses: ilammy/msvc-dev-cmd@v1
+
+      - name: 安装依赖（运行prepare.bat下载ReShade SDK）
+        run: |
+          .\prepare.bat
+        shell: cmd
 
       - name: 运行编译脚本生成插件
         run: |
