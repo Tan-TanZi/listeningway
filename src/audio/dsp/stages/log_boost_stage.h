@@ -15,7 +15,7 @@ namespace lw::dsp {
 
 class LogBoostStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "log_boost"; }
+    std::string_view name() const override { return "对数增益增强"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::RawBands};
         return r;
