@@ -731,13 +731,13 @@ static void section_levels(const AudioSnapshot& snap, config::Settings& cfg, boo
 
     if (show) {
         ImGui::Indent(kSubGroupIndent);
-        if (slider_row("Volume Boost", &cfg.frequency.amplifier_volume, 1.0f, 11.0f, "%.2f"))
+        if (slider_row("音量增强", &cfg.frequency.amplifier_volume, 1.0f, 11.0f, "%.2f"))
             dirty = true;
         tip("仅对音量显示数值与 listeningway_volume 着色器变量生效的视觉倍率。\n不影响节拍检测与音频分析。\n技术参数：frequency.amplifier_volume，取值范围 [1, 11]");
-        if (slider_row("Pan Smoothing", &cfg.audio.pan_smoothing, 0.0f, 1.0f, "%.2f"))
+        if (slider_row("平滑声像", &cfg.audio.pan_smoothing, 0.0f, 1.0f, "%.2f"))
             dirty = true;
         tip("平滑声像抖动。0 = 瞬时响应，1 = 极慢响应。\n技术参数：audio.pan_smoothing，取值范围 [0, 1]");
-        if (slider_row("Pan Offset", &cfg.audio.pan_offset, -1.0f, 1.0f, "%.2f"))
+        if (slider_row("偏移声像", &cfg.audio.pan_offset, -1.0f, 1.0f, "%.2f"))
             dirty = true;
         tip("调整立体声感知中心。适用于房间声场或耳机声道偏移时。\n技术参数：audio.pan_offset，取值范围 [-1, +1]");
         ImGui::Unindent(kSubGroupIndent);
@@ -762,9 +762,9 @@ static void section_beat(const AudioSnapshot& snap, config::Settings& cfg, bool&
     if (snap.tempo_detected) {
         std::snprintf(hint, sizeof(hint), "%.0f BPM", snap.tempo_bpm);
     } else {
-        std::snprintf(hint, sizeof(hint), "searching...");
+        std::snprintf(hint, sizeof(hint), "检索中...");
     }
-    const bool show = section_header_with_settings("Beat Detection", hint, "beat");
+    const bool show = section_header_with_settings("节拍检测", hint, "beat");
 
     const ImU32 fill = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
 
@@ -772,10 +772,10 @@ static void section_beat(const AudioSnapshot& snap, config::Settings& cfg, bool&
         TightRowSpacing tight;
         meter_row("脉冲节拍", std::clamp(snap.beat, 0.0f, 1.0f), fill);
         if (snap.tempo_detected) {
-            info_row("速度|节奏", "%.1f BPM (%.0f%% 置信度)",
+            info_row("速度|节拍", "%.1f BPM (%.0f%% 置信度)",
                      snap.tempo_bpm, snap.tempo_confidence * 100.0f);
         } else {
-            label_left("速度|节奏");
+            label_left("速度|节拍");
             ImGui::TextDisabled("分析中... (%.0f%% 置信度)",
                                 snap.tempo_confidence * 100.0f);
         }
@@ -948,23 +948,23 @@ static void section_spectrum(const AudioSnapshot& snap, config::Settings& cfg, b
 
     if (show) {
         ImGui::Indent(kSubGroupIndent);
-        if (slider_row("Bands Boost", &cfg.frequency.amplifier_bands, 1.0f, 11.0f, "%.2f"))
+        if (slider_row("频谱增强", &cfg.frequency.amplifier_bands, 1.0f, 11.0f, "%.2f"))
             dirty = true;
         // tip("Visual-only multiplier on the spectrum readouts and the listeningway_freqbands uniform.\nTechnical: frequency.amplifier_bands, [1, 11]");
         tip("仅对频谱显示数值与 listeningway_freqbands 着色器变量生效的视觉倍率。\n技术参数：frequency.amplifier_bands，取值范围 [1, 11]");
-        if (slider_row("Bass detail", &cfg.frequency.log_strength, 0.01f, 1.5f, "%.2f"))
+        if (slider_row("低音细节", &cfg.frequency.log_strength, 0.01f, 1.5f, "%.2f"))
             dirty = true;
         // tip("Higher = more visible detail in the bass bands; lower = flatter spectrum.\nTechnical: frequency.log_strength, [0.01, 1.5]");
         tip("数值越高 = 低频段细节越清晰；数值越低 = 频谱曲线越平缓。\n技术参数：frequency.log_strength，取值范围 [0.01, 1.5]");
 
-        subgroup_label("Equalizer (5-band):");
+        subgroup_label("均衡器（5频段）：");
         ImGui::Indent(kSubGroupIndent);
-        const char* const eq_names[5] = {"Bass", "Low-Mid", "Mid", "High-Mid", "Treble"};
+        const char* const eq_names[5] = {"低音", "中低音", "中音", "中高音", "高音"};
         for (int i = 0; i < 5; ++i) {
             if (slider_row(eq_names[i], &cfg.frequency.equalizer_bands[i], 0.0f, 4.0f, "%.2f"))
                 dirty = true;
         }
-        if (slider_row("Equalizer width", &cfg.frequency.equalizer_width, 0.05f, 0.5f, "%.2f"))
+        if (slider_row("均衡器宽度", &cfg.frequency.equalizer_width, 0.05f, 0.5f, "%.2f"))
             dirty = true;
         // tip("Width of each EQ knob's influence (Gaussian σ).\nTechnical: frequency.equalizer_width");
         tip("每个均衡器调节点的影响范围（高斯标准差σ）。\n技术参数：frequency.equalizer_width");
@@ -974,31 +974,31 @@ static void section_spectrum(const AudioSnapshot& snap, config::Settings& cfg, b
         ImGui::Indent(kSubGroupIndent);
         const char* const scales[] = {"Linear", "Log", "Mel (Slaney)"};
         int scale = static_cast<int>(cfg.frequency.band_scale);
-        if (combo_row("Band scale", &scale, scales, 3)) {
+        if (combo_row("频道尺度", &scale, scales, 3)) {
             cfg.frequency.band_scale =
                 static_cast<config::FrequencyConfig::BandScale>(scale);
             dirty = true;
         }
         // tip("How frequencies map onto the bands.\n  • Mel: matches human pitch perception.\n  • Log: v1 default.\n  • Linear: legacy.\nTechnical: frequency.band_scale");
-        tip("频率映射至频段的方式。\n  • 梅尔刻度：匹配人耳音高感知。\n  • 对数刻度：v1 版本默认值。\n  • 线性刻度：旧版模式。\n技术参数：frequency.band_scale");
+        tip("频率映射至频段的方式。\n  • Mel：匹配人耳音高感知。\n  • 对数刻度：v1 版本默认值。\n  • 线性刻度：旧版模式。\n技术参数：frequency.band_scale");
 
-        if (slider_int_row("Band count", &cfg.frequency.band_count, 8, 128))
+        if (slider_int_row("频段数量", &cfg.frequency.band_count, 8, 128))
             dirty = true;
         // tip("Number of frequency bands published. Must match shader array size.\nTechnical: frequency.band_count, [8, 128]");
         tip("输出的频段数量。必须与着色器数组大小保持一致。\n技术参数：frequency.band_count，取值范围 [8, 128]");
-        if (slider_int_row("Analysis resolution (FFT)", &cfg.frequency.fft_size, 256, 8192))
+        if (slider_int_row("分析分辨率（快速傅里叶变换）", &cfg.frequency.fft_size, 256, 8192))
             dirty = true;
         // tip("FFT window size. Higher = more frequency detail, more CPU. Power-of-two recommended.\nTechnical: frequency.fft_size");
         tip("FFT窗口大小。数值越高 = 频率细节越丰富，CPU占用越高。推荐使用2的幂数值。\n技术参数：frequency.fft_size");
-        if (slider_row("Low cutoff (Hz)", &cfg.frequency.min_freq, 10.0f, 500.0f, "%.0f"))
+        if (slider_row("低截止频率（Hz）", &cfg.frequency.min_freq, 10.0f, 500.0f, "%.0f"))
             dirty = true;
         // tip("Lowest frequency included.\nTechnical: frequency.min_freq, Hz");
         tip("包含的最低频率。\n技术参数：frequency.min_freq，单位 赫兹(Hz)");
-        if (slider_row("High cutoff (Hz)", &cfg.frequency.max_freq, 2000.0f, 22050.0f, "%.0f"))
+        if (slider_row("高截止频率（Hz）", &cfg.frequency.max_freq, 2000.0f, 22050.0f, "%.0f"))
             dirty = true;
         // tip("Highest frequency included.\nTechnical: frequency.max_freq, Hz");
         tip("包含的最高频率。\n技术参数：frequency.max_freq，单位 赫兹(Hz)");
-        if (slider_row("Magnitude scaling", &cfg.frequency.band_norm, 0.001f, 1.0f, "%.3f"))
+        if (slider_row("幅度缩放", &cfg.frequency.band_norm, 0.001f, 1.0f, "%.3f"))
             dirty = true;
         // tip("Raw FFT magnitude → band amplitude scaling factor.\nTechnical: frequency.band_norm");
         tip("原始FFT幅值 → 频段振幅缩放系数。\n技术参数：frequency.band_norm");
