@@ -16,7 +16,7 @@ namespace lw::dsp {
 
 class EqualizerStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "equalizer"; }
+    std::string_view name() const override { return "均衡器"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::RawBands};
         return r;
