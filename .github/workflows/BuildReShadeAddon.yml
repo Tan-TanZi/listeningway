@@ -13,16 +13,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 清除可能残留的错误 ReShade 目录
+      - name: Clean up old ReShade
+        run: |
+          if exist third_party\reshade rmdir /s /q third_party\reshade
+        shell: cmd
+
+      # 使用官方仓库 crosire/reshade，并递归拉取子模块（包含 imgui）
+      - name: Checkout ReShade SDK with submodules
+        uses: actions/checkout@v4
+        with:
+          repository: crosire/reshade
+          path: third_party/reshade
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      # 运行原项目的环境准备脚本（此时 third_party/reshade 已存在，脚本会跳过克隆）
       - name: Prepare environment (prepare.bat)
         run: .\prepare.bat
         shell: cmd
 
+      # 构建插件（注意先加载 VS 环境）
       - name: Build addon (build.bat)
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
           .\build.bat
         shell: cmd
 
+      # 上传构建产物
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
