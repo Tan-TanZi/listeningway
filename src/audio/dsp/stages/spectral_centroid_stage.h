@@ -12,7 +12,7 @@ namespace lw::dsp {
 
 class SpectralCentroidStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "spectral_centroid"; }
+    std::string_view name() const override { return "频谱质心"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::Magnitudes, FieldId::Format};
         return r;
