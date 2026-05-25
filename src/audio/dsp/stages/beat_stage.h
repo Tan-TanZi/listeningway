@@ -43,7 +43,7 @@ namespace lw::dsp {
 
 class BeatStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "beat"; }
+    std::string_view name() const override { return "节拍运算"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {
             FieldId::Magnitudes, FieldId::Phases, FieldId::FluxTotal,
