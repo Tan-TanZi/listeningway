@@ -28,7 +28,7 @@ namespace lw::dsp {
 
 class DirectionalStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "directional"; }
+    std::string_view name() const override { return "方向声场"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {FieldId::Samples, FieldId::Format};
         return r;
