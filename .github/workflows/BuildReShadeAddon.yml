@@ -1,10 +1,8 @@
 name: BuildListeningwayAddon
 
 on:
-  # 当代码推送到 main 或 master 分支时触发
   push:
     branches: [ "main", "master" ]
-  # 允许在 GitHub 网页上手动运行
   workflow_dispatch:
 
 jobs:
@@ -14,19 +12,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-
-      # 项目依赖 Visual Studio 2022 构建工具和 CMake
-      # GitHub 的 windows-latest 运行环境已预装这些工具，无需额外安装
+        # 不自动拉取子模块，因为 prepare.bat 会处理依赖
 
       - name: Prepare environment (prepare.bat)
-        # 此脚本会克隆并配置 ReShade SDK 和 vcpkg 等依赖[reference:3]
         run: .\prepare.bat
         shell: cmd
 
       - name: Build the addon (build.bat)
-        # 此脚本会生成 x64 和 x86 架构的 .addon 文件[reference:4][reference:5]
         run: .\build.bat
         shell: cmd
 
@@ -34,5 +26,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Listeningway-Build
-          # dist 目录包含最终生成的 .addon、.fx 和 .fxh 文件[reference:6]
           path: dist/
