@@ -1,4 +1,4 @@
-name: BuildListeningwayAddon
+name: Build Listeningway Addon
 
 on:
   push:
@@ -12,16 +12,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        # 不自动拉取子模块，因为 prepare.bat 会处理依赖
 
+      # 准备好环境（安装依赖）
       - name: Prepare environment (prepare.bat)
         run: .\prepare.bat
         shell: cmd
 
+      # 关键一步：加载VS开发者环境，然后用我们的脚本构建
       - name: Build the addon (build.bat)
-        run: .\build.bat
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+          .\build.bat
         shell: cmd
 
+      # 上传构建成果
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
