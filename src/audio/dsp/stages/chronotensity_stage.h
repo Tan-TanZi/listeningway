@@ -13,7 +13,7 @@ namespace lw::dsp {
 
 class ChronotensityStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "chronotensity"; }
+    std::string_view name() const override { return "时间密度"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {
             FieldId::VolumeNorm, FieldId::BassNorm, FieldId::TrebNorm,
