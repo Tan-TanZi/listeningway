@@ -1,0 +1,67 @@
+# 工作流名称：构建 Listeningway 插件
+name: BuildListeningwayAddonV2
+
+# 触发条件：手动触发
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # 在最新的 Windows 虚拟机中运行
+    runs-on: windows-latest
+
+    steps:
+      # ========== 1. 检出主仓库代码 ==========
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # 注意：不启用 submodules，因为原项目的 .gitmodules 中 tools/vcpkg 缺少 URL，
+        # 启用会导致拉取失败。依赖项由后面的 prepare.bat 处理。
+
+      # ========== 2. 清理可能残留的错误 ReShade 目录 ==========
+      # 如果之前运行失败过，可能留下残差不完整的 third_party/reshade，需要清空。
+      - name: Clean up old ReShade
+        run: if exist third_party\reshade rmdir /s /q third_party\reshade
+        shell: cmd
+
+      # ========== 3. 克隆正确的 ReShade SDK（官方仓库） ==========
+      # 必须使用 crosire/reshade（原项目依赖的仓库），且要递归拉取子模块（包含 imgui 等）。
+      # 这一步保证了所有头文件（如 ImGuiDockNodeFlags）都能被正确找到。
+      - name: Checkout ReShade SDK with submodules
+        uses: actions/checkout@v4
+        with:
+          repository: crosire/reshade            # 官方 ReShade 仓库地址
+          path: third_party/reshade              # 存放到主仓库的 third_party/reshade 下
+          submodules: 'recursive'                # 🔑 关键：拉取 imgui 等子模块，否则编译会报错
+          fetch-depth: 1                         # 只拉取最新一次提交，节省时间
+
+      # ========== 4. 运行原项目的环境准备脚本 ==========
+      # prepare.bat 负责：
+      #   - 安装 vcpkg 及依赖（gtest, kissfft, nlohmann-json 等）
+      #   - 如果 third_party/reshade 不存在则尝试 git clone，但我们已在步骤3中克隆好了，
+      #     因此它会检测到目录存在而跳过克隆，避免网络问题。
+      - name: Prepare environment (prepare.bat)
+        run: .\prepare.bat
+        shell: cmd
+
+      # ========== 5. 编译插件（加载 VS 开发环境） ==========
+      # build.bat 内部调用 msbuild，而 msbuild 需要 Visual Studio 的环境变量。
+      # 解决方案：先执行 VsDevCmd.bat 设置环境，再运行 build.bat。
+      # 注意：不要使用 microsoft/setup-msbuild action，因为它的环境对 cmd shell 无效。
+      - name: Build addon (build.bat)
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+          .\build.bat
+        shell: cmd   # 必须使用 cmd，因为 call 是 cmd 内建命令
+
+      # ========== 6. 上传构建产物 ==========
+      # build.bat 成功后，会在 dist/ 目录下生成以下文件：
+      #   - Listeningway-x64.addon  (64位插件)
+      #   - Listeningway-x86.addon  (32位插件，如果编译了)
+      #   - Listeningway.fx
+      #   - ListeningwayUniforms.fxh
+      # 我们将其打包为 zip 文件，供用户下载。
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Listeningway-Build      # 下载的压缩包名称
+          path: dist/                   # 要上传的目录
