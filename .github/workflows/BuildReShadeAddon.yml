@@ -1,4 +1,4 @@
-name: Build Listeningway Addon
+name: BuildListeningwayAddon
 
 on:
   push:
@@ -13,19 +13,55 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 准备好环境（安装依赖）
-      - name: Prepare environment (prepare.bat)
-        run: .\prepare.bat
-        shell: cmd
-
-      # 关键一步：加载VS开发者环境，然后用我们的脚本构建
-      - name: Build the addon (build.bat)
+      # 清理旧的损坏的 ReShade SDK（如果存在）
+      - name: Clean up broken ReShade SDK
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
-          .\build.bat
-        shell: cmd
+          if (Test-Path "third_party/reshade") {
+            Remove-Item -Recurse -Force "third_party/reshade"
+          }
+          if (Test-Path "third_party/reshaed") {
+            Remove-Item -Recurse -Force "third_party/reshaed"
+          }
 
-      # 上传构建成果
+      # 手动克隆正确的 ReShade SDK（使用官方仓库）
+      - name: Clone ReShade SDK
+        run: |
+          git clone --depth 1 https://github.com/reshade/reshade.git third_party/reshade
+
+      # 安装 vcpkg 依赖（使用 prepare.bat 中的相关部分）
+      - name: Install dependencies via vcpkg
+        run: |
+          # 运行 prepare.bat 但跳过它里面可能出错的 ReShade 克隆部分
+          # 这里直接使用 vcpkg 安装所需的包
+          if (Test-Path "tools/vcpkg/vcpkg.exe") {
+            .\tools\vcpkg\vcpkg install --triplet x64-windows-static
+          } else {
+            Write-Host "vcpkg not found, prepare.bat will be run"
+            .\prepare.bat
+          }
+
+      # 配置 CMake（生成构建文件）
+      - name: Configure CMake (x64)
+        run: |
+          cmake -B build-x64 -DCMAKE_TOOLCHAIN_FILE=tools/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -A x64
+
+      # 构建 x64 版本
+      - name: Build x64 addon
+        run: |
+          cmake --build build-x64 --config Release --target listeningway
+
+      # 查找生成的 .addon 文件并复制到 dist 目录
+      - name: Prepare artifacts
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $addon64 = Get-ChildItem -Path build-x64 -Recurse -Filter "*.addon" | Where-Object { $_.Name -like "*x64*" -or $_.DirectoryName -like "*x64*" } | Select-Object -First 1
+          $addon86 = Get-ChildItem -Path build-x86 -Recurse -Filter "*.addon" | Where-Object { $_.Name -like "*x86*" -or $_.DirectoryName -like "*x86*" } | Select-Object -First 1
+          if ($addon64) { Copy-Item $addon64.FullName -Destination "dist/Listeningway-x64.addon" -Force }
+          if ($addon86) { Copy-Item $addon86.FullName -Destination "dist/Listeningway-x86.addon" -Force }
+          # 复制 .fx 和 .fxh 文件（如果存在）
+          if (Test-Path "src/Listeningway.fx") { Copy-Item "src/Listeningway.fx" -Destination "dist/" -Force }
+          if (Test-Path "src/ListeningwayUniforms.fxh") { Copy-Item "src/ListeningwayUniforms.fxh" -Destination "dist/" -Force }
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
