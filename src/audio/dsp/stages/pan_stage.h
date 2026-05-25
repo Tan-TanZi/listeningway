@@ -13,7 +13,7 @@ namespace lw::dsp {
 
 class PanStage final : public IDspStage {
 public:
-    std::string_view name() const override { return "pan"; }
+    std::string_view name() const override { return "声像(平衡)运算"; }
     std::span<const FieldId> reads() const override {
         static constexpr FieldId r[] = {
             FieldId::Samples, FieldId::Format,
