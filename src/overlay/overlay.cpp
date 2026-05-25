@@ -716,16 +716,16 @@ static void section_levels(const AudioSnapshot& snap, config::Settings& cfg, boo
 
     {
         TightRowSpacing tight;
-        meter_row("Volume", std::clamp(snap.volume * vol_amp, 0.0f, 1.0f), fill);
+        meter_row("总音量", std::clamp(snap.volume * vol_amp, 0.0f, 1.0f), fill);
     }
 
     subgroup_label("立体声:");
     ImGui::Indent(kSubGroupIndent);
     {
         TightRowSpacing tight;
-        meter_row("Left",  std::clamp(snap.volume_left  * vol_amp, 0.0f, 1.0f), fill);
-        meter_row("Right", std::clamp(snap.volume_right * vol_amp, 0.0f, 1.0f), fill);
-        center_meter_row("Pan", snap.audio_pan);
+        meter_row("左声道",  std::clamp(snap.volume_left  * vol_amp, 0.0f, 1.0f), fill);
+        meter_row("右声道", std::clamp(snap.volume_right * vol_amp, 0.0f, 1.0f), fill);
+        center_meter_row("立体声平衡", snap.audio_pan);
     }
     ImGui::Unindent(kSubGroupIndent);
 
@@ -770,13 +770,13 @@ static void section_beat(const AudioSnapshot& snap, config::Settings& cfg, bool&
 
     {
         TightRowSpacing tight;
-        meter_row("Pulse", std::clamp(snap.beat, 0.0f, 1.0f), fill);
+        meter_row("脉冲节拍", std::clamp(snap.beat, 0.0f, 1.0f), fill);
         if (snap.tempo_detected) {
-            info_row("Tempo", "%.1f BPM (%.0f%% confidence)",
+            info_row("速度|节奏", "%.1f BPM (%.0f%% 置信度)",
                      snap.tempo_bpm, snap.tempo_confidence * 100.0f);
         } else {
-            label_left("Tempo");
-            ImGui::TextDisabled("searching... (%.0f%% confidence)",
+            label_left("速度|节奏");
+            ImGui::TextDisabled("分析中... (%.0f%% 置信度)",
                                 snap.tempo_confidence * 100.0f);
         }
     }
@@ -1135,18 +1135,18 @@ static void section_advanced(const AudioSnapshot& snap, config::Settings& cfg, b
     ImGui::Indent(kSubGroupIndent);
     {
         TightRowSpacing tight;
-        meter_row("Volume", snap.phase_volume, fill);
-        meter_row("Bass",   snap.phase_bass,   fill);
-        meter_row("Treble", snap.phase_treble, fill);
+        meter_row("音量", snap.phase_volume, fill);
+        meter_row("低音",   snap.phase_bass,   fill);
+        meter_row("高音", snap.phase_treble, fill);
     }
     ImGui::Unindent(kSubGroupIndent);
 
-    subgroup_label("Perceptual:");
+    subgroup_label("感知参数:");
     ImGui::Indent(kSubGroupIndent);
     {
         TightRowSpacing tight;
-        meter_row("Brightness", snap.spectral_centroid, fill, "%.3f");
-        meter_row("Loudness",   std::clamp(snap.loudness, 0.0f, 1.0f), fill, "%.2f");
+        meter_row("频谱亮度", snap.spectral_centroid, fill, "%.3f");
+        meter_row("响度",   std::clamp(snap.loudness, 0.0f, 1.0f), fill, "%.2f");
     }
     ImGui::Unindent(kSubGroupIndent);
 
